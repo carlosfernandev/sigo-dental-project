@@ -2,7 +2,10 @@
 package passwords
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -56,6 +59,21 @@ func Hash(password string) (string, error) {
 		return "", err
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), BcryptCost)
+	if err != nil {
+		return "", ErrHashGeneration
+	}
+	return string(hash), nil
+}
+
+// NewDummyHash creates a process-local hash used for timing work when an
+// account lookup misses. Its random input is never stored or logged.
+func NewDummyHash() (string, error) {
+	var dummyPassword [32]byte
+	if _, err := rand.Read(dummyPassword[:]); err != nil {
+		return "", fmt.Errorf("generate dummy password: %w", err)
+	}
+	password := []byte(hex.EncodeToString(dummyPassword[:]))
+	hash, err := bcrypt.GenerateFromPassword(password, BcryptCost)
 	if err != nil {
 		return "", ErrHashGeneration
 	}

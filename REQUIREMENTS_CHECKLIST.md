@@ -17,10 +17,10 @@
 | Item | Value |
 | --- | --- |
 | **Current milestone** | Backlog 01 — identidad (CI diferido por instrucción del usuario) |
-| **Last completed task** | Backlog 01 `1.2` — política bcrypt, verificación y rehash de contraseñas |
-| **Next pending task** | Backlog 01 `1.3` — login con respuesta genérica y verificación bcrypt |
-| **Blockers** | `0.4` CI queda para el final; las migraciones son forward-only según `AGENTS.md` |
-| **Services in flight** | Monolito — identity foundation |
+| **Last completed task** | Backlog 01 `1.3` — login genérico con validación, dummy hash y rehash bcrypt |
+| **Next pending task** | Backlog 01 `1.4` — sesión segura (resolver discrepancia JWT vs. cookie antes de implementar) |
+| **Blockers** | `0.4` CI queda para el final; las migraciones son forward-only según `AGENTS.md`; sesión requiere confirmar decisión del propietario |
+| **Services in flight** | Monolito — identity authentication |
 
 ## Target architecture
 

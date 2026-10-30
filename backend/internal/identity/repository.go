@@ -2,8 +2,10 @@ package identity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -36,6 +38,40 @@ func (r *PostgresRepository) InsertAdminIfAbsent(ctx context.Context, email, pas
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit admin seed transaction: %w", err)
+	}
+	return nil
+}
+
+// FindByEmail returns only fields required to authenticate a user.
+func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (AuthUser, error) {
+	var user AuthUser
+	err := r.db.QueryRow(ctx, `
+		SELECT users.id::text, users.email, users.password_hash, roles.name,
+		       users.is_active, users.must_change_password
+		FROM users
+	JOIN roles ON roles.id = users.role_id
+		WHERE users.email = $1
+	`, email).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.IsActive, &user.MustChangePassword)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AuthUser{}, ErrUserNotFound
+	}
+	if err != nil {
+		return AuthUser{}, fmt.Errorf("find identity user: %w", err)
+	}
+	return user, nil
+}
+
+func (r *PostgresRepository) UpdatePasswordHash(ctx context.Context, userID, passwordHash string) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE users
+		SET password_hash = $1, updated_at = now()
+		WHERE id = $2::uuid
+	`, passwordHash, userID)
+	if err != nil {
+		return fmt.Errorf("update identity password hash: %w", err)
+	}
+	if tag.RowsAffected() != 1 {
+		return fmt.Errorf("update identity password hash: user no longer exists")
 	}
 	return nil
 }

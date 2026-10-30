@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/carlosfpatino/sigo-dental/internal/identity"
+	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
 	"github.com/carlosfpatino/sigo-dental/platform/config"
+	"github.com/carlosfpatino/sigo-dental/platform/httpx"
 	"github.com/carlosfpatino/sigo-dental/platform/logging"
 	"github.com/gofiber/fiber/v3"
 	"github.com/joho/godotenv"
@@ -40,6 +44,13 @@ func main() {
 	defer db.Close()
 	logger.Info("database connected", "database", cfg.Postgres.Database)
 
+	dummyHash, err := passwords.NewDummyHash()
+	if err != nil {
+		logger.Error("failed to initialize authentication timing hash", "error", err)
+		os.Exit(1)
+	}
+	authService := identity.NewAuthService(identity.NewPostgresRepository(db), dummyHash)
+
 	// Initialize Redis (cache). If it fails, the API continues without cache.
 	redisClient := config.InitRedis(ctx, cfg.Redis, logger)
 	defer redisClient.Close()
@@ -50,6 +61,7 @@ func main() {
 	// ctrls := controllers.NewControllers(repo, cacheRepo, db, redisClient)
 
 	app := newApp(logger)
+	identity.NewLoginHandler(authService).RegisterRoutes(app)
 
 	// Start server in a goroutine
 	go func() {
@@ -78,15 +90,24 @@ func newApp(logger *slog.Logger) *fiber.App {
 		ErrorHandler: func(c fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			stableCode := "internal_error"
-			if e, ok := err.(*fiber.Error); ok {
+			message := "Internal Server Error"
+			var apiErr *httpx.Error
+			if errors.As(err, &apiErr) {
+				code = apiErr.Status
+				stableCode = apiErr.Code
+				message = apiErr.Message
+			} else if e, ok := err.(*fiber.Error); ok {
 				code = e.Code
 				stableCode = "http_error"
+				if statusMessage := http.StatusText(code); statusMessage != "" {
+					message = statusMessage
+				}
 			}
 			logger.Error("request error", "error", err, "path", c.Path(), "status", code)
 			return c.Status(code).JSON(fiber.Map{
 				"error": fiber.Map{
 					"code":    stableCode,
-					"message": http.StatusText(code),
+					"message": message,
 					"details": nil,
 				},
 			})

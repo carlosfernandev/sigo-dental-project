@@ -8,10 +8,10 @@
 
 ## Current state (2026-10-29)
 
-**Backend foundation and identity schema exist.** The repository has Go configuration,
-logging, PostgreSQL pool setup, a Fiber API bootstrap, a forward-only migration runner, the
-identity roles/users schema, and an idempotent first-admin seed. Login, sessions, MFA, RBAC,
-and audit behavior are still pending.
+**Backend foundation and identity login exist.** The repository has Go configuration, logging,
+PostgreSQL pool setup, a Fiber API bootstrap, a forward-only migration runner, the identity
+roles/users schema, a first-admin seed, and `POST /auth/login`. Sessions, MFA, user management,
+RBAC, and audit behavior are still pending.
 
 | Path | Content |
 | --- | --- |
@@ -26,8 +26,11 @@ and audit behavior are still pending.
 | `backend/platform/postgres/` | PostgreSQL pool construction. |
 | `backend/platform/logging/` | Structured logger setup. |
 | `backend/platform/migrate/` | Forward-only transactional PostgreSQL migration runner and tests. |
+| `backend/platform/httpx/` | Typed HTTP errors mapped by the central Fiber error handler. |
 | `backend/internal/identity/` | Identity persistence and first-admin seed use case. |
 | `backend/internal/identity/passwords/` | Password policy, bcrypt hashing, verification, and rehash. |
+| `backend/internal/identity/auth.go` | Login authentication use case and credential verification. |
+| `backend/internal/identity/handler.go` | `POST /auth/login` HTTP validation and response mapping. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
 | `backend/cmd/migrate/main.go` | `go run ./cmd/migrate up` migration command. |
 | `backend/cmd/seed-admin/main.go` | `make seed-admin` initial SystemAdmin seed command. |
