@@ -1,0 +1,63 @@
+name: ${COMPOSE_PROJECT_NAME:-sigo-dental}
+
+# Credentials are never written in this file. Every value comes from the
+# environment: compose reads deploy/.env (gitignored), and `:?` aborts the boot
+# with a readable message when a required variable is missing.
+#
+# Ports bind to 127.0.0.1 on purpose. Publishing 5432 on 0.0.0.0 exposes a
+# database with a password to every machine on the network.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${SIGO_PG_USER:?SIGO_PG_USER is required; copy deploy/.env.example to deploy/.env}
+      POSTGRES_PASSWORD: ${SIGO_PG_PASSWORD:?SIGO_PG_PASSWORD is required; copy deploy/.env.example to deploy/.env}
+      # Maintenance database only. Each service gets its own database from
+      # postgres/init, never a schema inside this one.
+      POSTGRES_DB: ${SIGO_PG_MAINTENANCE_DB:-sigo}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      # Maintenance database only. The monolith uses this database directly;
+      # all domains (identity, patient, clinical, scheduling, billing) live in
+      # the public schema.
+    ports:
+      - "127.0.0.1:${SIGO_PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro,z
+      # The init script creates the single `sigo` database. All domains use the public schema.
+      # :z flag relabels for SELinux (Fedora/RHEL) to allow container access.
+    healthcheck:
+      # $$ defers to the container's own environment, so the credentials are
+      # declared once instead of duplicated in the healthcheck.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      # Cache only: no RDB snapshots, AOF is enough to survive a restart.
+      - --save
+      - ""
+    ports:
+      - "127.0.0.1:${SIGO_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
