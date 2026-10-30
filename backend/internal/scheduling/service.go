@@ -4,6 +4,7 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/carlosfpatino/sigo-dental/platform/authn"
@@ -187,6 +188,52 @@ func (s *Service) UpdateAppointment(ctx context.Context, principal authn.Princip
 	return updated, nil
 }
 
+func (s *Service) GeneratePendingReminders(ctx context.Context) error {
+	return s.repo.GeneratePendingReminders(ctx, s.now().UTC())
+}
+
+func (s *Service) ListPendingReminders(ctx context.Context, principal authn.Principal) ([]Reminder, error) {
+	if err := requireReminderAccess(principal); err != nil {
+		return nil, err
+	}
+	if err := s.GeneratePendingReminders(ctx); err != nil {
+		return nil, fmt.Errorf("generate reminders before listing: %w", err)
+	}
+	return s.repo.ListPendingReminders(ctx)
+}
+
+func (s *Service) UpdateReminder(ctx context.Context, principal authn.Principal, id string, request updateReminderRequest) (Reminder, error) {
+	if err := requireReminderAccess(principal); err != nil {
+		return Reminder{}, err
+	}
+	if !schedulingUUIDPattern.MatchString(id) || !schedulingUUIDPattern.MatchString(principal.UserID) ||
+		(request.Status != "contacted" && request.Status != "no_response") {
+		return Reminder{}, ErrInvalidReminder
+	}
+	if request.Notes != nil {
+		notes := strings.TrimSpace(*request.Notes)
+		if len(notes) > 500 {
+			return Reminder{}, ErrInvalidReminder
+		}
+		request.Notes = &notes
+	}
+	return s.repo.UpdateReminder(ctx, id, request.Status, principal.UserID, request.Notes)
+}
+
+// CreateSchedulableTasks persists billing-approved work through the caller's transaction.
+func (s *Service) CreateSchedulableTasks(ctx context.Context, executor Executor, tasks []SchedulableTask) error {
+	if executor == nil {
+		return ErrInvalidSchedulableTask
+	}
+	for _, task := range tasks {
+		if !schedulingUUIDPattern.MatchString(task.PatientID) || !schedulingUUIDPattern.MatchString(task.QuoteID) ||
+			task.ItemID == "" || strings.TrimSpace(task.ProcedureName) == "" {
+			return ErrInvalidSchedulableTask
+		}
+	}
+	return s.repo.CreateSchedulableTasks(ctx, executor, tasks)
+}
+
 func requireAdminAccess(principal authn.Principal) error {
 	return authn.RequireAnyRole(principal, authn.RoleAdminTI)
 }
@@ -197,6 +244,10 @@ func requireSchedulingAccess(principal authn.Principal) error {
 		authn.RoleDentist,
 		authn.RoleDentalAssistant,
 	)
+}
+
+func requireReminderAccess(principal authn.Principal) error {
+	return authn.RequireAnyRole(principal, authn.RoleReceptionistCashier)
 }
 
 func isOverlapError(err error) bool {

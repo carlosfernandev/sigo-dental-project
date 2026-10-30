@@ -3,6 +3,10 @@ package billing
 
 import "time"
 
+type ApproveQuoteRequest struct {
+	ApprovedItemIDs []string `json:"approved_item_ids"`
+}
+
 // Procedure DTOs
 type procedureRequest struct {
 	Code        string `json:"code"`

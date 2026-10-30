@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/carlosfpatino/sigo-dental/internal/scheduling"
 	"github.com/carlosfpatino/sigo-dental/platform/authn"
 	"github.com/carlosfpatino/sigo-dental/platform/migrate"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -71,8 +72,35 @@ func TestInvoiceRepositoryPostgresIntegration(t *testing.T) {
 	}
 
 	repository := NewPostgresRepository(db)
-	service := NewService(repository)
+	schedulingService := scheduling.NewService(scheduling.NewPostgresRepository(db))
+	service := NewService(repository, schedulingService)
 	principal := authn.Principal{UserID: cashierID, Role: authn.RoleReceptionistCashier}
+	quote, err := service.CreateQuote(ctx, principal, Quote{
+		PatientID: patientID,
+		Items: []QuoteItem{
+			{ProcedureID: "procedure-1", ProcedureName: "Cleaning", Quantity: 1, UnitPrice: 2500, Total: 2500},
+			{ProcedureID: "procedure-2", ProcedureName: "Filling", Quantity: 1, UnitPrice: 5000, Total: 5000},
+		},
+		Subtotal: 7500, Total: 7500,
+	})
+	if err != nil {
+		t.Fatalf("CreateQuote() error = %v", err)
+	}
+	partialQuote, err := service.ApproveQuote(ctx, principal, quote.ID, ApproveQuoteRequest{ApprovedItemIDs: []string{quote.Items[0].ID}})
+	if err != nil || partialQuote.Status != "partially_approved" || partialQuote.Items[0].Status != "approved" || partialQuote.Items[1].Status != "pending" {
+		t.Fatalf("partial ApproveQuote() = %+v, error %v", partialQuote, err)
+	}
+	var taskCount int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM schedulable_tasks WHERE quote_id=$1::uuid`, quote.ID).Scan(&taskCount); err != nil || taskCount != 1 {
+		t.Fatalf("partial task count = %d, error %v", taskCount, err)
+	}
+	approved, err := service.ApproveQuote(ctx, principal, quote.ID, ApproveQuoteRequest{ApprovedItemIDs: []string{quote.Items[1].ID}})
+	if err != nil || approved.Status != "approved" {
+		t.Fatalf("final ApproveQuote() = status %q, error %v", approved.Status, err)
+	}
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM schedulable_tasks WHERE quote_id=$1::uuid`, quote.ID).Scan(&taskCount); err != nil || taskCount != 2 {
+		t.Fatalf("final task count = %d, error %v", taskCount, err)
+	}
 	invoice, err := service.CreateInvoice(ctx, principal, Invoice{
 		PatientID: patientID,
 		Items:     []InvoiceItem{{Description: "Dental cleaning", Quantity: 2, UnitPrice: 2500}},

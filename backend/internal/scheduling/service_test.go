@@ -13,6 +13,11 @@ import (
 type repositoryFake struct {
 	createAppointmentCall int
 	appointment           Appointment
+	generateReminderCalls int
+	generatedAt           time.Time
+	reminders             []Reminder
+	updatedReminder       Reminder
+	schedulableTasks      []SchedulableTask
 }
 
 func (r *repositoryFake) CreateOperatory(_ context.Context, o Operatory) (Operatory, error) {
@@ -73,6 +78,34 @@ func (r *repositoryFake) UpdateAppointment(_ context.Context, a Appointment) (Ap
 	r.appointment = a
 	return a, nil
 }
+func (r *repositoryFake) GeneratePendingReminders(_ context.Context, now time.Time) error {
+	r.generateReminderCalls++
+	r.generatedAt = now
+	return nil
+}
+func (r *repositoryFake) ListPendingReminders(context.Context) ([]Reminder, error) {
+	return r.reminders, nil
+}
+func (r *repositoryFake) GetReminder(_ context.Context, id string) (Reminder, error) {
+	if r.updatedReminder.ID != id {
+		return Reminder{}, ErrReminderNotFound
+	}
+	return r.updatedReminder, nil
+}
+func (r *repositoryFake) UpdateReminder(_ context.Context, id, status, actorID string, notes *string) (Reminder, error) {
+	r.updatedReminder.ID = id
+	r.updatedReminder.Status = status
+	r.updatedReminder.HandledBy = &actorID
+	r.updatedReminder.Notes = ""
+	if notes != nil {
+		r.updatedReminder.Notes = *notes
+	}
+	return r.updatedReminder, nil
+}
+func (r *repositoryFake) CreateSchedulableTasks(_ context.Context, _ Executor, tasks []SchedulableTask) error {
+	r.schedulableTasks = append(r.schedulableTasks, tasks...)
+	return nil
+}
 
 func TestCreateAppointmentRequiresSchedulingRoleAndValidates(t *testing.T) {
 	repo := &repositoryFake{}
@@ -131,5 +164,43 @@ func TestUpdateAppointmentValidatesStateTransition(t *testing.T) {
 	update.State = AppointmentStateCompleted
 	if _, err := service.UpdateAppointment(context.Background(), principal, update); err == nil {
 		t.Fatalf("UpdateAppointment(scheduled->completed) should fail, got nil error")
+	}
+}
+
+func TestListPendingRemindersGeneratesTheQueue(t *testing.T) {
+	repo := &repositoryFake{reminders: []Reminder{{ID: "reminder-1", Status: "pending"}}}
+	service := NewService(repo)
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return now }
+	principal := authn.Principal{UserID: "user-1", Role: authn.RoleReceptionistCashier}
+
+	reminders, err := service.ListPendingReminders(context.Background(), principal)
+	if err != nil {
+		t.Fatalf("ListPendingReminders() error = %v", err)
+	}
+	if len(reminders) != 1 || repo.generateReminderCalls != 1 || !repo.generatedAt.Equal(now) {
+		t.Fatalf("reminders=%+v, generation calls=%d, generated at=%v", reminders, repo.generateReminderCalls, repo.generatedAt)
+	}
+	if _, err := service.ListPendingReminders(context.Background(), authn.Principal{Role: authn.RoleDentist}); !errors.Is(err, authn.ErrForbidden) {
+		t.Fatalf("ListPendingReminders(dentist) error = %v, want forbidden", err)
+	}
+}
+
+func TestUpdateReminderValidatesStatusAndRecordsReceptionist(t *testing.T) {
+	repo := &repositoryFake{}
+	service := NewService(repo)
+	principal := authn.Principal{UserID: "123e4567-e89b-12d3-a456-426614174000", Role: authn.RoleReceptionistCashier}
+	id := "223e4567-e89b-12d3-a456-426614174000"
+	notes := "  Llamada realizada  "
+
+	updated, err := service.UpdateReminder(context.Background(), principal, id, updateReminderRequest{Status: "contacted", Notes: &notes})
+	if err != nil {
+		t.Fatalf("UpdateReminder() error = %v", err)
+	}
+	if updated.Status != "contacted" || updated.Notes != "Llamada realizada" || updated.HandledBy == nil || *updated.HandledBy != principal.UserID {
+		t.Fatalf("UpdateReminder() = %+v", updated)
+	}
+	if _, err := service.UpdateReminder(context.Background(), principal, id, updateReminderRequest{Status: "pending"}); !errors.Is(err, ErrInvalidReminder) {
+		t.Fatalf("UpdateReminder(pending) error = %v, want invalid reminder", err)
 	}
 }

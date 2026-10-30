@@ -32,6 +32,20 @@ Para trabajo de interfaz, sigue [`docs/design/PLAN_DISENO_FRONTEND.md`](docs/des
 - Criterios de aceptación del SRS: ≥80% de cobertura en endpoints críticos, DAST/SAST sin
   vulnerabilidades altas o críticas y OpenAPI 3.0 entregado.
 
+## Context Limit Rules:
+
+- NUNCA leas todo el workspace ni uses herramientas de búsqueda global a menos que se te pida explícitamente.
+
+- Este proyecto usa Vertical Slicing en Go. Cada dominio vive aislado en internal/<dominio>/ con sus propios archivos entity.go, dto.go, repository.go, service.go y handler.go.
+
+- Al implementar un requerimiento, lee ÚNICAMENTE el archivo específico en docs/specs/ y edita ÚNICAMENTE los archivos de la carpeta del dominio correspondiente.
+
+- No generes explicaciones largas ni texto de relleno; devuelve solo código listo para producción.
+
+- Manejo de base de datos: Usa PostgreSQL y migraciones SQL puras (forward-only).
+
+- Framework HTTP: Usa Fiber v2.
+
 ## Convenciones del repositorio
 
 - Conventional Commits. No agregar `Co-Authored-By` ni atribución de IA.

@@ -2,9 +2,12 @@
 package scheduling
 
 import (
+	"regexp"
 	"strings"
 	"time"
 )
+
+var schedulingUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 func ValidateOperatory(o Operatory) error {
 	o.Name = strings.TrimSpace(o.Name)

@@ -22,10 +22,19 @@ type Repository interface {
 	ListQuotes(ctx context.Context, patientID *string) ([]Quote, error)
 	GetQuote(ctx context.Context, id string) (Quote, error)
 	UpdateQuote(ctx context.Context, q Quote) (Quote, error)
+	BeginQuoteApproval(ctx context.Context) (QuoteApprovalTx, error)
 
 	BeginInvoiceTx(ctx context.Context) (InvoiceTx, error)
 	ListInvoicesByPatient(ctx context.Context, patientID string) ([]Invoice, error)
 	BeginCashCloseTx(ctx context.Context) (CashCloseTx, error)
+}
+
+type QuoteApprovalTx interface {
+	LoadQuoteForUpdate(ctx context.Context, quoteID string) (Quote, error)
+	SaveQuote(ctx context.Context, quote Quote) error
+	Exec(ctx context.Context, query string, args ...any) error
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 }
 
 // CashCloseTx keeps the system totals private until the service has received the count request.
@@ -212,16 +221,76 @@ func (r *PostgresRepository) UpdateQuote(ctx context.Context, q Quote) (Quote, e
 	itemsJSON, _ := json.Marshal(q.Items)
 	tag, err := r.db.Exec(ctx, `
 		UPDATE quotes SET patient_id=$1::uuid, items=$2, subtotal=$3, discount=$4, total=$5, status=$6, approved_at=$7, updated_at=now()
-		WHERE id=$8::uuid
+		WHERE id=$8::uuid AND status='draft'
 	`, q.PatientID, itemsJSON, q.Subtotal, q.Discount, q.Total, q.Status, q.ApprovedAt, q.ID)
 	if err != nil {
 		return Quote{}, fmt.Errorf("update quote: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return Quote{}, ErrQuoteNotFound
+		if _, err := r.GetQuote(ctx, q.ID); err != nil {
+			return Quote{}, err
+		}
+		return Quote{}, ErrQuoteNotApprovable
 	}
 	return r.GetQuote(ctx, q.ID)
 }
+
+type postgresQuoteApprovalTx struct{ tx pgx.Tx }
+
+func (r *PostgresRepository) BeginQuoteApproval(ctx context.Context) (QuoteApprovalTx, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin quote approval: %w", err)
+	}
+	return &postgresQuoteApprovalTx{tx: tx}, nil
+}
+
+func (r *postgresQuoteApprovalTx) LoadQuoteForUpdate(ctx context.Context, quoteID string) (Quote, error) {
+	var quote Quote
+	var itemsJSON []byte
+	err := r.tx.QueryRow(ctx, `
+		SELECT id::text, patient_id::text, items, subtotal, discount, total, status, approved_at, created_at, updated_at
+		FROM quotes WHERE id = $1::uuid FOR UPDATE
+	`, quoteID).Scan(&quote.ID, &quote.PatientID, &itemsJSON, &quote.Subtotal, &quote.Discount,
+		&quote.Total, &quote.Status, &quote.ApprovedAt, &quote.CreatedAt, &quote.UpdatedAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return Quote{}, ErrQuoteNotFound
+		}
+		return Quote{}, fmt.Errorf("lock quote for approval: %w", err)
+	}
+	if err := json.Unmarshal(itemsJSON, &quote.Items); err != nil {
+		return Quote{}, fmt.Errorf("decode quote items for approval: %w", err)
+	}
+	return quote, nil
+}
+
+func (r *postgresQuoteApprovalTx) SaveQuote(ctx context.Context, quote Quote) error {
+	itemsJSON, err := json.Marshal(quote.Items)
+	if err != nil {
+		return fmt.Errorf("encode quote items: %w", err)
+	}
+	tag, err := r.tx.Exec(ctx, `
+		UPDATE quotes SET items=$1, status=$2, approved_at=$3, updated_at=now()
+		WHERE id=$4::uuid
+	`, itemsJSON, quote.Status, quote.ApprovedAt, quote.ID)
+	if err != nil {
+		return fmt.Errorf("save approved quote: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrQuoteNotFound
+	}
+	return nil
+}
+
+func (r *postgresQuoteApprovalTx) Exec(ctx context.Context, query string, args ...any) error {
+	_, err := r.tx.Exec(ctx, query, args...)
+	return err
+}
+
+func (r *postgresQuoteApprovalTx) Commit(ctx context.Context) error { return r.tx.Commit(ctx) }
+
+func (r *postgresQuoteApprovalTx) Rollback(ctx context.Context) error { return r.tx.Rollback(ctx) }
 
 type postgresInvoiceTx struct{ tx pgx.Tx }
 

@@ -42,7 +42,7 @@ func ValidateQuote(q Quote, now time.Time) error {
 	if q.Subtotal < 0 || q.Discount < 0 || q.Total < 0 {
 		return ErrInvalidQuote
 	}
-	validStatuses := map[string]bool{"draft": true, "approved": true, "rejected": true}
+	validStatuses := map[string]bool{"draft": true, "approved": true, "partially_approved": true, "rejected": true}
 	if !validStatuses[q.Status] {
 		return ErrInvalidQuote
 	}

@@ -86,6 +86,11 @@ type appointmentSummaryResponse struct {
 	State       AppointmentState `json:"state"`
 }
 
+type updateReminderRequest struct {
+	Status string  `json:"status"`
+	Notes  *string `json:"notes,omitempty"`
+}
+
 // Request conversion methods
 func (r operatoryRequest) entity() Operatory {
 	return Operatory{

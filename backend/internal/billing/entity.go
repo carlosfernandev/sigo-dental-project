@@ -7,16 +7,18 @@ import (
 )
 
 var (
-	ErrInvalidProcedure      = errors.New("invalid procedure")
-	ErrProcedureNotFound     = errors.New("procedure not found")
-	ErrInvalidQuote          = errors.New("invalid quote")
-	ErrQuoteNotFound         = errors.New("quote not found")
-	ErrInvalidInvoice        = errors.New("invalid invoice")
-	ErrInvoiceNotFound       = errors.New("invoice not found")
-	ErrPaymentExceedsBalance = errors.New("payment exceeds invoice balance")
-	ErrInvoiceNotPayable     = errors.New("invoice is not payable")
-	ErrInvalidCashClose      = errors.New("invalid cash close")
-	ErrCashCloseExists       = errors.New("cash close already exists for date")
+	ErrInvalidProcedure       = errors.New("invalid procedure")
+	ErrProcedureNotFound      = errors.New("procedure not found")
+	ErrInvalidQuote           = errors.New("invalid quote")
+	ErrQuoteNotFound          = errors.New("quote not found")
+	ErrQuoteNotApprovable     = errors.New("quote cannot be approved")
+	ErrTaskCreatorUnavailable = errors.New("schedulable task service unavailable")
+	ErrInvalidInvoice         = errors.New("invalid invoice")
+	ErrInvoiceNotFound        = errors.New("invoice not found")
+	ErrPaymentExceedsBalance  = errors.New("payment exceeds invoice balance")
+	ErrInvoiceNotPayable      = errors.New("invoice is not payable")
+	ErrInvalidCashClose       = errors.New("invalid cash close")
+	ErrCashCloseExists        = errors.New("cash close already exists for date")
 )
 
 type Procedure struct {
@@ -32,12 +34,14 @@ type Procedure struct {
 }
 
 type QuoteItem struct {
+	ID            string `json:"id"`
 	ProcedureID   string
 	ProcedureName string
 	Quantity      int
-	UnitPrice     int64 // cents
-	Discount      int64 // cents
-	Total         int64 // cents
+	UnitPrice     int64  // cents
+	Discount      int64  // cents
+	Total         int64  // cents
+	Status        string `json:"status"`
 }
 
 type Quote struct {
@@ -47,7 +51,7 @@ type Quote struct {
 	Subtotal   int64  // cents
 	Discount   int64  // cents
 	Total      int64  // cents
-	Status     string // draft, approved, rejected
+	Status     string // draft, approved, partially_approved, rejected
 	ApprovedAt *time.Time
 	CreatedAt  time.Time
 	UpdatedAt  time.Time

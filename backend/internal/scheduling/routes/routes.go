@@ -27,6 +27,8 @@ type handler interface {
 	ListAppointments(c fiber.Ctx) error
 	GetAppointment(c fiber.Ctx) error
 	UpdateAppointment(c fiber.Ctx) error
+	ListPendingReminders(c fiber.Ctx) error
+	UpdateReminder(c fiber.Ctx) error
 }
 
 func Register(router fiber.Router, h handler, authMiddleware fiber.Handler) {
@@ -59,4 +61,8 @@ func Register(router fiber.Router, h handler, authMiddleware fiber.Handler) {
 	appointments.Get("/", h.ListAppointments)
 	appointments.Get("/:id", h.GetAppointment)
 	appointments.Put("/:id", h.UpdateAppointment)
+
+	reminders := router.Group("/reminders", authMiddleware)
+	reminders.Get("/pending", h.ListPendingReminders)
+	reminders.Patch("/:id", h.UpdateReminder)
 }

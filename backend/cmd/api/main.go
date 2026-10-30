@@ -85,12 +85,16 @@ func main() {
 		patient.NewHandler(patient.NewService(patient.NewPostgresRepository(db))),
 		middleware.RequireAuth(tokens, activity),
 	)
+	schedulingService := scheduling.NewService(scheduling.NewPostgresRepository(db))
 	schedulingroutes.Register(app,
-		scheduling.NewHandler(scheduling.NewService(scheduling.NewPostgresRepository(db))),
+		scheduling.NewHandler(schedulingService),
 		middleware.RequireAuth(tokens, activity),
 	)
+	reminderWorkerCtx, stopReminderWorker := context.WithCancel(context.Background())
+	defer stopReminderWorker()
+	startReminderWorker(reminderWorkerCtx, logger, schedulingService)
 	billingroutes.Register(app,
-		billing.NewHandler(billing.NewService(billing.NewPostgresRepository(db))),
+		billing.NewHandler(billing.NewService(billing.NewPostgresRepository(db), schedulingService)),
 		middleware.RequireAuth(tokens, activity),
 	)
 
@@ -110,10 +114,32 @@ func main() {
 	<-quit
 
 	logger.Info("shutting down http server")
+	stopReminderWorker()
 	if err := app.Shutdown(); err != nil {
 		logger.Error("shutdown error", "error", err)
 	}
 	logger.Info("shutdown complete")
+}
+
+func startReminderWorker(ctx context.Context, logger *slog.Logger, service *scheduling.Service) {
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		generate := func() {
+			if err := service.GeneratePendingReminders(ctx); err != nil {
+				logger.Error("appointment reminder generation failed", "error", err)
+			}
+		}
+		generate()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				generate()
+			}
+		}
+	}()
 }
 
 type healthPinger interface {

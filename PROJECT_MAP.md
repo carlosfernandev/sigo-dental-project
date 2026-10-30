@@ -6,13 +6,15 @@
 > Planned paths are listed only in the clearly marked section below, because an agent that opens
 > a nonexistent file wastes a turn and then guesses the design from the filename.
 
-## Current state (2026-10-29)
+## Current state (2026-10-30)
 
-**Backend foundation and JWT login exist.** The repository has Go
-configuration, logging, PostgreSQL pool setup, a Fiber API bootstrap, a forward-only migration
-runner, the identity roles/users schema, a first-admin seed, `POST /auth/login`, protected
-`GET /auth/me`, 15-minute in-process idle timeout, and admin-only user management (`GET`, `POST`,
-and `PUT /users`). Domain RBAC enforcement and audit behavior are pending.
+**Fase 1 backend flows are in progress.** The Go/Fiber monolith includes identity and user
+administration, patients, scheduling and appointments, RF-11's internal reminder queue and
+15-minute generator, medical catalog, RF-08 quote approvals and schedulable tasks, RF-12 invoices and
+mixed payments, and RN-02 cash close. Migrations are forward-only through
+`011_quote_approvals_schedulable_tasks.sql`. Domain RBAC still needs
+to be completed across all use cases; the frontend, clinical and inventory flows, production
+deployment, and CI execution remain pending.
 
 | Path | Content |
 | --- | --- |
@@ -39,7 +41,9 @@ and `PUT /users`). Domain RBAC enforcement and audit behavior are pending.
 | `backend/internal/identity/users.go` | Admin-only user listing, creation, and update use cases with service-layer authorization. |
 | `backend/internal/identity/users_handler.go` | `/users` HTTP mapping. |
 | `backend/internal/identity/routes/` | Identity HTTP route declarations, separate from handler logic. |
-| `backend/internal/billing/` | Medical catalog, quotes, RF-12 invoices/payments, and RN-02 cash close. |
+| `backend/internal/scheduling/` | Operatories, chairs, dentists, appointments, RF-11 internal reminders, and RF-08 schedulable tasks. |
+| `backend/internal/scheduling/routes/` | Scheduling and reminder route declarations. |
+| `backend/internal/billing/` | Medical catalog, RF-07/08 quotes and approvals, RF-12 invoices/payments, and RN-02 cash close. |
 | `backend/internal/billing/routes/` | Billing and invoice route declarations. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
 | `backend/cmd/migrate/main.go` | `go run ./cmd/migrate up` migration command. |
@@ -47,6 +51,8 @@ and `PUT /users`). Domain RBAC enforcement and audit behavior are pending.
 | `backend/migrations/` | Versioned SQL migrations for the monolith. |
 | `backend/migrations/008_billing_invoice_lines_payments.sql` | Normalized invoice lines and payment records for RF-12. |
 | `backend/migrations/009_cash_register_closures.sql` | Daily blind cash register closure records for RN-02. |
+| `backend/migrations/010_appointment_reminders.sql` | Deduplicated 48h/24h appointment reminder queue for RF-11. |
+| `backend/migrations/011_quote_approvals_schedulable_tasks.sql` | Partial/total quote approvals and schedulable tasks for RF-08. |
 | `docs/decisiones/0002-password-hashing.md` | Owner-approved bcrypt cost and password policy. |
 | `deploy/docker-compose.yml` | Development PostgreSQL and Redis containers. |
 | `.github/workflows/ci.yml` | GitHub Actions checks, PostgreSQL integration service, vulnerability scan. |

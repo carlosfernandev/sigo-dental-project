@@ -9,8 +9,8 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | RN-02: cierre de caja ciego con comparación de efectivo y vouchers |
-| **Siguiente requisito** | RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables |
+| **Último trabajo completado** | RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables |
+| **Siguiente requisito** | Portal web responsive para los flujos de Fase 1 (RNF-07 y RNF-08) |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
 | **Alcance** | MVP completo del SRS v1.3, sin integraciones externas (ver Alcance MVP) |
@@ -53,21 +53,21 @@ El MVP cubre todos los RF, RN y RNF del SRS y funciona sin servicios de terceros
 
 - [x] RF-01: ficha, datos de contacto, emergencia, tutor legal para menores y seguro/convenio.
 - [x] RF-02: historial médico obligatorio y alertas críticas en la cabecera del expediente.
-- [ ] Catálogo médico requerido por la descripción de Fase 1 del SRS.
+- [x] Catálogo médico requerido por la descripción de Fase 1 del SRS.
 
 ### Agenda y turnos
 
 - [x] RF-09: calendario por recinto, sillón y profesional.
 - [x] RF-10: estados de cita definidos en el SRS.
 - [x] RN-03: impedir citas superpuestas en el mismo sillón, también bajo concurrencia.
-- [ ] RF-11: recordatorios 48 h y 24 h generados por el sistema en una cola interna de recepción
+- [x] RF-11: recordatorios 48 h y 24 h generados por el sistema en una cola interna de recepción
       (estados pendiente/contactado/sin respuesta, con quién y cuándo); puerto de notificación sin
       proveedor externo.
 
 ### Presupuestos, facturación y portal
 
 - [x] RF-07: presupuestos por fases/sesiones, con honorarios, laboratorio y descuentos autorizados.
-- [ ] RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables.
+- [x] RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables.
 - [x] RF-12: crear y emitir facturas dentro del sistema y registrar pagos mixtos; sin conexión
       tributaria externa ni pasarela de pagos (tarjeta, transferencia y seguro se registran con
       referencia).
@@ -122,4 +122,3 @@ El MVP cubre todos los RF, RN y RNF del SRS y funciona sin servicios de terceros
 2. Implementar solo trabajo necesario para los requisitos del SRS y decisiones de `AGENTS.md`.
 3. No iniciar una pantalla antes de que exista y esté verificado el endpoint correspondiente.
 4. Marcar completado solo después de verificar el criterio aplicable.
-5. Mantener `docs/specs/01-fundacion-identidad-auditoria.md` alineado con este checklist.

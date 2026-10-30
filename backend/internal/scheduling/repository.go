@@ -4,6 +4,7 @@ package scheduling
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,6 +34,12 @@ type Repository interface {
 	ListAppointments(ctx context.Context, chairID, dentistID, patientID *string, startDate, endDate *string) ([]AppointmentSummary, error)
 	GetAppointment(ctx context.Context, id string) (Appointment, error)
 	UpdateAppointment(ctx context.Context, a Appointment) (Appointment, error)
+
+	GeneratePendingReminders(ctx context.Context, now time.Time) error
+	ListPendingReminders(ctx context.Context) ([]Reminder, error)
+	GetReminder(ctx context.Context, id string) (Reminder, error)
+	UpdateReminder(ctx context.Context, id, status, actorID string, notes *string) (Reminder, error)
+	CreateSchedulableTasks(ctx context.Context, executor Executor, tasks []SchedulableTask) error
 }
 
 type PostgresRepository struct {
@@ -341,4 +348,121 @@ func (r *PostgresRepository) UpdateAppointment(ctx context.Context, a Appointmen
 		return Appointment{}, ErrAppointmentNotFound
 	}
 	return r.GetAppointment(ctx, a.ID)
+}
+
+func (r *PostgresRepository) GeneratePendingReminders(ctx context.Context, now time.Time) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO appointment_reminders (appointment_id, reminder_type)
+		SELECT a.id, reminder_window.reminder_type
+		FROM appointments AS a
+		CROSS JOIN (VALUES
+			('48h'::text, $1::timestamptz + interval '24 hours', $1::timestamptz + interval '48 hours'),
+			('24h'::text, $1::timestamptz, $1::timestamptz + interval '24 hours')
+		) AS reminder_window (reminder_type, lower_bound, upper_bound)
+		WHERE a.state = 'confirmed'
+		  AND a.start_time > reminder_window.lower_bound
+		  AND a.start_time <= reminder_window.upper_bound
+		ON CONFLICT (appointment_id, reminder_type) DO NOTHING
+	`, now.UTC())
+	if err != nil {
+		return fmt.Errorf("generate appointment reminders: %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresRepository) ListPendingReminders(ctx context.Context) ([]Reminder, error) {
+	rows, err := r.db.Query(ctx, reminderQuery+`
+		WHERE r.status = 'pending' AND a.state = 'confirmed'
+		ORDER BY a.start_time, r.reminder_type, r.id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list pending reminders: %w", err)
+	}
+	defer rows.Close()
+	reminders := make([]Reminder, 0)
+	for rows.Next() {
+		reminder, err := scanReminder(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan pending reminder: %w", err)
+		}
+		reminders = append(reminders, reminder)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read pending reminders: %w", err)
+	}
+	return reminders, nil
+}
+
+func (r *PostgresRepository) GetReminder(ctx context.Context, id string) (Reminder, error) {
+	reminder, err := scanReminder(r.db.QueryRow(ctx, reminderQuery+` WHERE r.id = $1::uuid`, id))
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return Reminder{}, ErrReminderNotFound
+		}
+		return Reminder{}, fmt.Errorf("get reminder: %w", err)
+	}
+	return reminder, nil
+}
+
+func (r *PostgresRepository) UpdateReminder(ctx context.Context, id, status, actorID string, notes *string) (Reminder, error) {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE appointment_reminders
+		SET status = $1, notes = COALESCE($2, notes), handled_by = $3::uuid,
+		    handled_at = now(), updated_at = now()
+		WHERE id = $4::uuid AND status = 'pending'
+	`, status, notes, actorID, id)
+	if err != nil {
+		return Reminder{}, fmt.Errorf("update reminder: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		if _, err := r.GetReminder(ctx, id); err != nil {
+			return Reminder{}, err
+		}
+		return Reminder{}, ErrReminderHandled
+	}
+	reminder, err := r.GetReminder(ctx, id)
+	if err != nil {
+		return Reminder{}, err
+	}
+	return reminder, nil
+}
+
+func (r *PostgresRepository) CreateSchedulableTasks(ctx context.Context, executor Executor, tasks []SchedulableTask) error {
+	for _, task := range tasks {
+		if err := executor.Exec(ctx, `
+			INSERT INTO schedulable_tasks (patient_id, quote_id, item_id, procedure_name)
+			VALUES ($1::uuid, $2::uuid, $3, $4)
+		`, task.PatientID, task.QuoteID, task.ItemID, task.ProcedureName); err != nil {
+			return fmt.Errorf("insert schedulable task: %w", err)
+		}
+	}
+	return nil
+}
+
+const reminderQuery = `
+	SELECT r.id::text, r.appointment_id::text, r.reminder_type, r.status, r.notes,
+	       a.start_time, a.end_time, p.id::text, p.first_name || ' ' || p.last_name,
+	       p.phone, d.first_name || ' ' || d.last_name, c.name,
+	       r.handled_by::text, r.handled_at, r.created_at, r.updated_at
+	FROM appointment_reminders AS r
+	JOIN appointments AS a ON a.id = r.appointment_id
+	JOIN patients AS p ON p.id = a.patient_id
+	JOIN dentists AS d ON d.id = a.dentist_id
+	JOIN chairs AS c ON c.id = a.chair_id
+`
+
+type reminderScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanReminder(row reminderScanner) (Reminder, error) {
+	var reminder Reminder
+	err := row.Scan(
+		&reminder.ID, &reminder.AppointmentID, &reminder.ReminderType, &reminder.Status,
+		&reminder.Notes, &reminder.AppointmentStartTime, &reminder.AppointmentEndTime,
+		&reminder.PatientID, &reminder.PatientName, &reminder.PatientPhone, &reminder.DentistName,
+		&reminder.ChairName, &reminder.HandledBy, &reminder.HandledAt, &reminder.CreatedAt,
+		&reminder.UpdatedAt,
+	)
+	return reminder, err
 }

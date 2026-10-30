@@ -157,6 +157,22 @@ func (h *Handler) UpdateQuote(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": quoteResponseFrom(updated)})
 }
 
+func (h *Handler) ApproveQuote(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorized()
+	}
+	var request ApproveQuoteRequest
+	if err := decodeRequest(c, &request); err != nil {
+		return invalidRequest()
+	}
+	approved, err := h.service.ApproveQuote(c.Context(), principal, c.Params("id"), request)
+	if err != nil {
+		return billingError(err)
+	}
+	return c.JSON(fiber.Map{"data": quoteResponseFrom(approved)})
+}
+
 // CreateInvoice records and issues an internal invoice. Monetary inputs and outputs are cents.
 func (h *Handler) CreateInvoice(c fiber.Ctx) error {
 	principal, ok := middleware.PrincipalFromContext(c)
@@ -253,6 +269,8 @@ func billingError(err error) error {
 		return httpx.NewError(fiber.StatusNotFound, "procedure_not_found", "Procedimiento no encontrado", err)
 	case errors.Is(err, ErrQuoteNotFound):
 		return httpx.NewError(fiber.StatusNotFound, "quote_not_found", "Presupuesto no encontrado", err)
+	case errors.Is(err, ErrQuoteNotApprovable):
+		return httpx.NewError(fiber.StatusConflict, "quote_not_approvable", "El presupuesto no admite más aprobaciones", err)
 	case errors.Is(err, ErrInvoiceNotFound):
 		return httpx.NewError(fiber.StatusNotFound, "invoice_not_found", "Factura no encontrada", err)
 	case errors.Is(err, ErrPaymentExceedsBalance):

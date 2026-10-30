@@ -3,24 +3,35 @@ package billing
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"time"
 
+	"github.com/carlosfpatino/sigo-dental/internal/scheduling"
 	"github.com/carlosfpatino/sigo-dental/platform/authn"
 )
 
-type Service struct {
-	repo Repository
-	now  func() time.Time
+type SchedulableTaskCreator interface {
+	CreateSchedulableTasks(ctx context.Context, executor scheduling.Executor, tasks []scheduling.SchedulableTask) error
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{
+type Service struct {
+	repo        Repository
+	taskCreator SchedulableTaskCreator
+	now         func() time.Time
+}
+
+func NewService(repo Repository, taskCreators ...SchedulableTaskCreator) *Service {
+	service := &Service{
 		repo: repo,
 		now: func() time.Time {
 			return time.Now().In(time.FixedZone("America/Guayaquil", -5*60*60))
 		},
 	}
+	if len(taskCreators) > 0 {
+		service.taskCreator = taskCreators[0]
+	}
+	return service
 }
 
 // Procedure operations
@@ -66,6 +77,12 @@ func (s *Service) CreateQuote(ctx context.Context, principal authn.Principal, q 
 	if q.Status == "" {
 		q.Status = "draft"
 	}
+	if q.Status != "draft" {
+		return Quote{}, ErrInvalidQuote
+	}
+	if err := assignPendingQuoteItems(q.Items); err != nil {
+		return Quote{}, err
+	}
 	if err := ValidateQuote(q, s.now()); err != nil {
 		return Quote{}, err
 	}
@@ -90,14 +107,132 @@ func (s *Service) UpdateQuote(ctx context.Context, principal authn.Principal, q 
 	if err := requireBillingAccess(principal); err != nil {
 		return Quote{}, err
 	}
+	existing, err := s.repo.GetQuote(ctx, q.ID)
+	if err != nil {
+		return Quote{}, err
+	}
+	if existing.Status != "draft" {
+		return Quote{}, ErrQuoteNotApprovable
+	}
+	q.Status = "draft"
+	q.ApprovedAt = nil
+	if err := assignPendingQuoteItems(q.Items); err != nil {
+		return Quote{}, err
+	}
 	if err := ValidateQuote(q, s.now()); err != nil {
 		return Quote{}, err
 	}
-	if q.Status == "approved" && q.ApprovedAt == nil {
-		now := s.now()
-		q.ApprovedAt = &now
-	}
 	return s.repo.UpdateQuote(ctx, q)
+}
+
+func (s *Service) ApproveQuote(ctx context.Context, principal authn.Principal, quoteID string, request ApproveQuoteRequest) (Quote, error) {
+	if err := authn.RequireAnyRole(principal, authn.RoleAdminTI, authn.RoleReceptionistCashier, authn.RoleDentist); err != nil {
+		return Quote{}, err
+	}
+	if !billingUUIDPattern.MatchString(quoteID) || len(request.ApprovedItemIDs) == 0 {
+		return Quote{}, ErrInvalidQuote
+	}
+	if s.taskCreator == nil {
+		return Quote{}, ErrTaskCreatorUnavailable
+	}
+	selected := make(map[string]struct{}, len(request.ApprovedItemIDs))
+	for _, id := range request.ApprovedItemIDs {
+		if id == "" {
+			return Quote{}, ErrInvalidQuote
+		}
+		if _, exists := selected[id]; exists {
+			return Quote{}, ErrInvalidQuote
+		}
+		selected[id] = struct{}{}
+	}
+
+	tx, err := s.repo.BeginQuoteApproval(ctx)
+	if err != nil {
+		return Quote{}, err
+	}
+	defer tx.Rollback(ctx)
+	quote, err := tx.LoadQuoteForUpdate(ctx, quoteID)
+	if err != nil {
+		return Quote{}, err
+	}
+	if quote.Status != "draft" && quote.Status != "partially_approved" {
+		return Quote{}, ErrQuoteNotApprovable
+	}
+	approvedTasks := make([]scheduling.SchedulableTask, 0, len(selected))
+	seen := make(map[string]struct{}, len(quote.Items))
+	approvedCount := 0
+	for i := range quote.Items {
+		item := &quote.Items[i]
+		if item.ID == "" || (item.Status != "pending" && item.Status != "approved") {
+			return Quote{}, ErrInvalidQuote
+		}
+		seen[item.ID] = struct{}{}
+		if _, approve := selected[item.ID]; !approve {
+			if item.Status == "approved" {
+				approvedCount++
+			}
+			continue
+		}
+		if item.Status != "pending" {
+			return Quote{}, ErrInvalidQuote
+		}
+		item.Status = "approved"
+		approvedCount++
+		approvedTasks = append(approvedTasks, scheduling.SchedulableTask{
+			PatientID: quote.PatientID, QuoteID: quote.ID, ItemID: item.ID, ProcedureName: item.ProcedureName,
+		})
+	}
+	if len(seen) != len(quote.Items) || len(seen) == 0 {
+		return Quote{}, ErrInvalidQuote
+	}
+	for id := range selected {
+		if _, exists := seen[id]; !exists {
+			return Quote{}, ErrInvalidQuote
+		}
+	}
+	if len(approvedTasks) == 0 {
+		return Quote{}, ErrInvalidQuote
+	}
+	quote.Status = "partially_approved"
+	if approvedCount == len(quote.Items) {
+		quote.Status = "approved"
+	}
+	if quote.ApprovedAt == nil {
+		approvedAt := s.now().UTC()
+		quote.ApprovedAt = &approvedAt
+	}
+	if err := tx.SaveQuote(ctx, quote); err != nil {
+		return Quote{}, err
+	}
+	if err := s.taskCreator.CreateSchedulableTasks(ctx, tx, approvedTasks); err != nil {
+		return Quote{}, fmt.Errorf("create schedulable tasks for approved quote: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Quote{}, fmt.Errorf("commit quote approval: %w", err)
+	}
+	return quote, nil
+}
+
+func assignPendingQuoteItems(items []QuoteItem) error {
+	for i := range items {
+		id, err := newQuoteItemID()
+		if err != nil {
+			return fmt.Errorf("generate quote item id: %w", err)
+		}
+		items[i].ID = id
+		items[i].Status = "pending"
+	}
+	return nil
+}
+
+func newQuoteItemID() (string, error) {
+	var id [16]byte
+	if _, err := rand.Read(id[:]); err != nil {
+		return "", err
+	}
+	id[6] = (id[6] & 0x0f) | 0x40
+	id[8] = (id[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", id[0:4], id[4:6], id[6:8], id[8:10], id[10:16]), nil
 }
 
 // CreateInvoice calculates all line totals on the server and issues the invoice atomically.

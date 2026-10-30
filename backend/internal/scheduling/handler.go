@@ -306,6 +306,34 @@ func (h *Handler) UpdateAppointment(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": appointmentResponseFrom(updated)})
 }
 
+func (h *Handler) ListPendingReminders(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorized()
+	}
+	reminders, err := h.service.ListPendingReminders(c.Context(), principal)
+	if err != nil {
+		return schedulingError(err)
+	}
+	return c.JSON(fiber.Map{"data": reminders})
+}
+
+func (h *Handler) UpdateReminder(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorized()
+	}
+	var request updateReminderRequest
+	if err := decodeRequest(c, &request); err != nil {
+		return invalidRequest()
+	}
+	reminder, err := h.service.UpdateReminder(c.Context(), principal, c.Params("id"), request)
+	if err != nil {
+		return schedulingError(err)
+	}
+	return c.JSON(fiber.Map{"data": reminder})
+}
+
 func decodeRequest(c fiber.Ctx, target any) error {
 	contentType, _, err := mime.ParseMediaType(c.Get(fiber.HeaderContentType))
 	if err != nil || !strings.EqualFold(contentType, fiber.MIMEApplicationJSON) || len(c.Body()) == 0 || len(c.Body()) > maxRequestBytes {
@@ -333,6 +361,12 @@ func schedulingError(err error) error {
 		return httpx.NewError(fiber.StatusNotFound, "appointment_not_found", "Cita no encontrada", err)
 	case errors.Is(err, ErrChairOverlap):
 		return httpx.NewError(fiber.StatusConflict, "chair_overlap", "El sillón ya tiene una cita en este horario", err)
+	case errors.Is(err, ErrReminderNotFound):
+		return httpx.NewError(fiber.StatusNotFound, "reminder_not_found", "Recordatorio no encontrado", err)
+	case errors.Is(err, ErrReminderHandled):
+		return httpx.NewError(fiber.StatusConflict, "reminder_already_handled", "El recordatorio ya fue gestionado", err)
+	case errors.Is(err, ErrInvalidReminder):
+		return invalidRequest()
 	default:
 		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "Error interno del servidor", err)
 	}
