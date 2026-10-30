@@ -16,21 +16,22 @@ const testJWTSecret = "test-only-secret-with-more-than-32-bytes"
 // failure points at that key and not at a missing neighbour.
 func baseline() map[string]string {
 	return map[string]string{
-		"SIGO_ENV":            "",
-		"SIGO_LOG_LEVEL":      "",
-		"SIGO_JWT_SECRET":     testJWTSecret,
-		"SIGO_PG_HOST":        "localhost",
-		"SIGO_PG_PORT":        "",
-		"SIGO_PG_USER":        "sigo",
-		"SIGO_PG_PASSWORD":    "sigo_dev_password",
-		"SIGO_PG_DATABASE":    "sigo",
-		"SIGO_PG_SSLMODE":     "",
-		"SIGO_PG_MAX_CONNS":   "",
-		"SIGO_PG_MIN_CONNS":   "",
-		"SIGO_REDIS_HOST":     "",
-		"SIGO_REDIS_PORT":     "",
-		"SIGO_REDIS_PASSWORD": "",
-		"SIGO_REDIS_DATABASE": "",
+		"SIGO_ENV":                  "",
+		"SIGO_LOG_LEVEL":            "",
+		"SIGO_JWT_SECRET":           testJWTSecret,
+		"SIGO_PG_HOST":              "localhost",
+		"SIGO_PG_PORT":              "",
+		"SIGO_PG_USER":              "sigo",
+		"SIGO_PG_PASSWORD":          "sigo_dev_password",
+		"SIGO_PG_DATABASE":          "sigo",
+		"SIGO_PG_SSLMODE":           "",
+		"SIGO_PG_MAX_CONNS":         "",
+		"SIGO_PG_MIN_CONNS":         "",
+		"SIGO_REDIS_HOST":           "",
+		"SIGO_REDIS_PORT":           "",
+		"SIGO_REDIS_PASSWORD":       "",
+		"SIGO_REDIS_DATABASE":       "",
+		"SIGO_CORS_ALLOWED_ORIGINS": "",
 	}
 }
 
@@ -106,6 +107,11 @@ func TestLoad(t *testing.T) {
 			env:     map[string]string{"SIGO_LOG_LEVEL": "verbose"},
 			wantErr: "SIGO_LOG_LEVEL must be one of",
 		},
+		{
+			name:    "invalid CORS origin",
+			env:     map[string]string{"SIGO_CORS_ALLOWED_ORIGINS": "ftp://127.0.0.1:5173"},
+			wantErr: "SIGO_CORS_ALLOWED_ORIGINS contains an invalid origin",
+		},
 	}
 
 	for _, tt := range tests {
@@ -143,6 +149,25 @@ func TestLoad(t *testing.T) {
 				t.Errorf("Redis defaults = %+v, want host 127.0.0.1, port 6379, database 0", cfg.Redis)
 			}
 		})
+	}
+}
+
+func TestLoadCORSOrigins(t *testing.T) {
+	apply(t, map[string]string{"SIGO_CORS_ALLOWED_ORIGINS": "https://app.example.com, https://admin.example.com/"})
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	want := []string{"https://app.example.com", "https://admin.example.com"}
+	if len(cfg.CORS.AllowedOrigins) != len(want) {
+		t.Fatalf("allowed origins = %v, want %v", cfg.CORS.AllowedOrigins, want)
+	}
+	for i := range want {
+		if cfg.CORS.AllowedOrigins[i] != want[i] {
+			t.Errorf("allowed origins = %v, want %v", cfg.CORS.AllowedOrigins, want)
+			break
+		}
 	}
 }
 

@@ -41,6 +41,46 @@ func TestHealth(t *testing.T) {
 	}
 }
 
+func TestCORSPreflightAllowsViteOriginsAndAuthHeaders(t *testing.T) {
+	for _, origin := range []string{"http://localhost:5173", "http://127.0.0.1:5173"} {
+		t.Run(origin, func(t *testing.T) {
+			req := httptest.NewRequest(fiber.MethodOptions, "/auth/login", nil)
+			req.Header.Set(fiber.HeaderOrigin, origin)
+			req.Header.Set(fiber.HeaderAccessControlRequestMethod, fiber.MethodPost)
+			req.Header.Set(fiber.HeaderAccessControlRequestHeaders, "authorization,content-type")
+			resp, err := newTestApp().Test(req)
+			if err != nil {
+				t.Fatalf("preflight app.Test() error = %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.Header.Get(fiber.HeaderAccessControlAllowOrigin) != origin {
+				t.Errorf("Access-Control-Allow-Origin = %q, want %q", resp.Header.Get(fiber.HeaderAccessControlAllowOrigin), origin)
+			}
+			if !strings.Contains(strings.ToLower(resp.Header.Get(fiber.HeaderAccessControlAllowHeaders)), "authorization") ||
+				!strings.Contains(strings.ToLower(resp.Header.Get(fiber.HeaderAccessControlAllowHeaders)), "content-type") {
+				t.Errorf("Access-Control-Allow-Headers = %q, want authorization and content-type", resp.Header.Get(fiber.HeaderAccessControlAllowHeaders))
+			}
+			if resp.StatusCode < fiber.StatusOK || resp.StatusCode >= fiber.StatusMultipleChoices {
+				t.Errorf("preflight status = %d, want 2xx", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestCORSDoesNotAllowUnlistedOrigin(t *testing.T) {
+	req := httptest.NewRequest(fiber.MethodOptions, "/auth/login", nil)
+	req.Header.Set(fiber.HeaderOrigin, "http://untrusted.example")
+	req.Header.Set(fiber.HeaderAccessControlRequestMethod, fiber.MethodPost)
+	resp, err := newTestApp().Test(req)
+	if err != nil {
+		t.Fatalf("preflight app.Test() error = %v", err)
+	}
+	defer resp.Body.Close()
+	if got := resp.Header.Get(fiber.HeaderAccessControlAllowOrigin); got != "" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want no header", got)
+	}
+}
+
 func TestHealthDegradesForRedisAndFailsForPostgres(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	for _, tc := range []struct {

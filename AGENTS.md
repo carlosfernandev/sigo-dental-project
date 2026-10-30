@@ -14,7 +14,7 @@
 
 ## Arquitectura y prácticas
 
-Las decisiones vigentes de stack, límites de dominio, API y persistencia están en
+Las decisiones vigentes de stack, límites de dominio, API y persistencia, y diseño de frontend están en
 [`docs/architecture/`](docs/architecture/). Léelas y mantenlas coherentes con el SRS y el código;
 si se actualiza una decisión, actualiza allí su documento y los artefactos afectados. No dupliques
 su detalle aquí.

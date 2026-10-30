@@ -9,7 +9,7 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables |
+| **Último trabajo completado** | Frontend: autenticación y enrutamiento base público/privado |
 | **Siguiente requisito** | Portal web responsive para los flujos de Fase 1 (RNF-07 y RNF-08) |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
@@ -48,6 +48,7 @@ El MVP cubre todos los RF, RN y RNF del SRS y funciona sin servicios de terceros
 - [x] RNF-05: cerrar acceso tras 15 minutos de inactividad; el middleware rechaza las solicitudes
       autenticadas y requiere volver a iniciar sesión. El seguimiento vive en memoria del monolito.
 - [x] `authn.RequireAnyRole` aplicado en los casos de uso de administración de usuarios.
+- [x] Frontend: login conectado a `/auth/login`, sesión verificada por `/auth/me` y layouts público/privado.
 
 ### Pacientes y catálogo médico
 

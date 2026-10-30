@@ -13,8 +13,9 @@ administration, patients, scheduling and appointments, RF-11's internal reminder
 15-minute generator, medical catalog, RF-08 quote approvals and schedulable tasks, RF-12 invoices and
 mixed payments, and RN-02 cash close. Migrations are forward-only through
 `011_quote_approvals_schedulable_tasks.sql`. Domain RBAC still needs
-to be completed across all use cases; the frontend, clinical and inventory flows, production
-deployment, and CI execution remain pending.
+to be completed across all use cases; the frontend scaffold now includes login and base routing,
+while the remaining portal flows, clinical and inventory flows, production deployment, and CI
+execution remain pending.
 
 | Path | Content |
 | --- | --- |
@@ -53,6 +54,16 @@ deployment, and CI execution remain pending.
 | `backend/migrations/009_cash_register_closures.sql` | Daily blind cash register closure records for RN-02. |
 | `backend/migrations/010_appointment_reminders.sql` | Deduplicated 48h/24h appointment reminder queue for RF-11. |
 | `backend/migrations/011_quote_approvals_schedulable_tasks.sql` | Partial/total quote approvals and schedulable tasks for RF-08. |
+| `frontend/src/app/` | React application router, public/private layouts, and authentication provider. |
+| `frontend/src/features/auth/` | Login screen, API schemas, and authentication requests. |
+| `frontend/src/features/dashboard/pages/` | Inicio con accesos directos a los módulos de Fase 1. |
+| `frontend/src/features/patients/pages/` | Estado inicial de la pantalla de pacientes. |
+| `frontend/src/features/scheduling/pages/` | Estado inicial de la pantalla de agenda. |
+| `frontend/src/features/billing/pages/` | Estado inicial de la pantalla de presupuestos. |
+| `frontend/src/features/navigation/` | Authenticated navigation shell and module links. |
+| `frontend/src/shared/ui/` | Presentational module empty state reused by feature pages. |
+| `frontend/src/shared/lib/http.ts` | Shared HTTP client with Bearer token injection and API error mapping. |
+| `frontend/src/styles.css` | Frontend tokens and responsive styles aligned with the design plan. |
 | `docs/decisiones/0002-password-hashing.md` | Owner-approved bcrypt cost and password policy. |
 | `deploy/docker-compose.yml` | Development PostgreSQL and Redis containers. |
 | `.github/workflows/ci.yml` | GitHub Actions checks, PostgreSQL integration service, vulnerability scan. |

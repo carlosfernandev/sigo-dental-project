@@ -28,6 +28,7 @@ type Config struct {
 	Auth     Auth
 	Postgres Postgres
 	Redis    Redis
+	CORS     CORS
 }
 
 // Load reads the environment and returns a validated Config. Every problem is
@@ -41,6 +42,7 @@ func Load() (Config, error) {
 		Auth:     loadAuth(l),
 		Postgres: loadPostgres(l),
 		Redis:    loadRedis(l),
+		CORS:     loadCORS(l, l.optional("SIGO_ENV")),
 	}
 
 	if cfg.Postgres.MinConns > cfg.Postgres.MaxConns {

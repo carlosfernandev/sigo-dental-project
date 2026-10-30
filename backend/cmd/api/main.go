@@ -23,6 +23,7 @@ import (
 	"github.com/carlosfpatino/sigo-dental/platform/httpx"
 	"github.com/carlosfpatino/sigo-dental/platform/logging"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
@@ -75,7 +76,7 @@ func main() {
 	// cacheRepo := cache.NewRedisCache(redisClient)
 	// ctrls := controllers.NewControllers(repo, cacheRepo, db, redisClient)
 
-	app := newApp(logger, db, redisHealthPinger{client: redisClient})
+	app := newApp(logger, db, redisHealthPinger{client: redisClient}, cfg.CORS.AllowedOrigins...)
 	identityroutes.Register(app,
 		identity.NewLoginHandler(authService, tokens),
 		identity.NewUserAdminHandler(identity.NewUserAdminService(identity.NewPostgresRepository(db))),
@@ -154,20 +155,18 @@ func (p redisHealthPinger) Ping(ctx context.Context) error {
 	return p.client.Ping(ctx).Err()
 }
 
-func newApp(logger *slog.Logger, postgresHealth, redisHealth healthPinger) *fiber.App {
+func newApp(logger *slog.Logger, postgresHealth, redisHealth healthPinger, allowedOrigins ...string) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: httpx.FiberErrorHandler(logger),
 	})
-
-	// TODO: Add CORS middleware here if needed
-	// corsOrigins := os.Getenv("CORS_ORIGINS")
-	// if corsOrigins == "" {
-	// 	corsOrigins = "*"
-	// }
-	// app.Use(cors.New(cors.Config{
-	// 	AllowOrigins: corsOrigins,
-	// 	AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	// }))
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"http://localhost:5173", "http://127.0.0.1:5173"}
+	}
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: allowedOrigins,
+		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
+	}))
 
 	app.Get("/health", healthHandler(postgresHealth, redisHealth))
 
