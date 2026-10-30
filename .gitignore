@@ -1,0 +1,36 @@
+# Environment and credentials — never committed.
+# .env.example is the versioned template.
+.env
+.env.*
+!.env.example
+*.local
+
+# Binaries
+/bin/
+backend/bin/
+*.exe
+*.test
+*.out
+
+# Test and coverage output
+coverage.*
+*.coverprofile
+*.prof
+
+# Frontend
+node_modules/
+dist/
+.vite/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.atl/cache/
