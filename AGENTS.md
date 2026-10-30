@@ -42,7 +42,7 @@ before pinning in `go.mod`; do not copy these blindly.
 | PostgreSQL | 16 |
 | pgx | v5 (`pgxpool`) |
 | go-redis | v9 |
-| golang-jwt | v5, HS256 |
+| JWT | `github.com/golang-jwt/jwt/v5`, HS256 |
 | Passwords | `golang.org/x/crypto/bcrypt` |
 
 MinIO is explicitly last: no upload endpoints, buckets, or presigned-URL flows until clinical
@@ -54,13 +54,13 @@ Decided by the owner to reduce operational complexity. One Go binary serving all
 (identity, patient, scheduling, clinical, billing, inventory) with a single PostgreSQL database.
 
 ```text
-frontend/  ──HTTPS/JWT──▶  monolith (Go + Fiber)  ──▶  PostgreSQL
+frontend/  ──HTTPS/JWT Bearer──▶  monolith (Go + Fiber)  ──▶  PostgreSQL
                                                 └─▶  Redis (cache)
 ```
 
 | Domain module | Owns |
 | --- | --- |
-| `identity` | users, roles, sessions, MFA |
+| `identity` | users, roles, and authentication |
 | `patient` | patients, legal guardians, medical history, allergies, insurance |
 | `scheduling` | chairs, operatory, appointments, appointment states |
 | `clinical` | clinical record, odontogram, periodontogram, progress notes, consents |
@@ -75,15 +75,15 @@ frontend/  ──HTTPS/JWT──▶  monolith (Go + Fiber)  ──▶  PostgreSQ
   A domain module may import another's repository for cross-domain queries, but never the reverse.
 - **Synchronous calls for everything.** No async messaging. Cross-domain flows are function calls
   within the same process, wrapped in transactions when atomicity is required.
-- **AuthN at HTTP middleware, AuthZ in the owning domain's service layer.** The JWT carries the role;
-  the service layer checks permissions before executing use cases.
+- **AuthN at HTTP middleware, AuthZ in the owning domain's service layer.** The JWT carries the
+  user subject and role; the service layer checks permissions.
 - **Single HTTP server.** All endpoints live in one Fiber app with domain-scoped route groups.
 
 ### Repository layout
 
 ```text
 backend/
-  platform/                  # shared packages: config, logging, errors, tracing, redis
+  platform/                  # shared packages: config, logging, errors, tracing, authn
   cache/                     # Redis Cache-Aside adapter; errors become cache misses
   middleware/                # HTTP authentication middleware; authorization stays in services
   cmd/api/                   # composition root: config, pool, routes, start
@@ -114,7 +114,7 @@ HTTP route declarations belong in a `routes/` subpackage inside their owning dom
 
 Cross-cutting packages live in `backend/cache` and `backend/middleware`; domain services receive
 their interfaces through dependency injection. Authentication middleware establishes identity
-from a validated JWT. It does not replace the owning service's authorization checks.
+from a validated HS256 JWT. It does not replace the owning service's authorization checks.
 
 **Do not create top-level `controllers/`, `models/`, `repository/`, or `routes/`.** That
 layer-first layout is the anti-pattern this project rejects: one feature edit touches every
@@ -196,13 +196,11 @@ The frontend talks to the monolith API directly. It does not know the internal d
 
 ## Jurisdiction
 
-Ecuador. "Autoridad tributaria local" / "legislación nacional" in the SRS means the **SRI**
-(Servicio de Rentas Internas). "Hora local" is `America/Guayaquil` (UTC−5, no DST) — relevant
-to the RNF-02 uptime window (07:00–21:00).
+Ecuador. "Hora local" is `America/Guayaquil` (UTC−5, no DST) — relevant to the RNF-02 uptime
+window (07:00–21:00).
 
-**SRI e-invoicing is deferred** until the main features are covered: no invoice stamping, fiscal
-XML, access keys, or certificate handling yet. Fase 1 still needs basic billing and payment
-capture; it does not need fiscal submission.
+Fase 1 includes creating and issuing invoices in the application and recording mixed payments.
+There is no integration with the tax authority or external fiscal submission in scope.
 
 Still open: the three commission formulas in RF-13 (fixed %, fixed amount per procedure, % after
 lab/material costs) are not chosen.

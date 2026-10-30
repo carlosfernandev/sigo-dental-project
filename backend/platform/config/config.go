@@ -25,6 +25,7 @@ const (
 type Config struct {
 	Env      string
 	LogLevel slog.Level
+	Auth     Auth
 	Postgres Postgres
 	Redis    Redis
 }
@@ -37,6 +38,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		Env:      l.oneOf("SIGO_ENV", EnvDevelopment, EnvDevelopment, EnvTest, EnvStaging, EnvProduction),
 		LogLevel: l.level("SIGO_LOG_LEVEL", slog.LevelInfo),
+		Auth:     loadAuth(l),
 		Postgres: loadPostgres(l),
 		Redis:    loadRedis(l),
 	}

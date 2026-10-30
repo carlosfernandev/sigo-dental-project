@@ -10,6 +10,8 @@ import (
 	"github.com/carlosfpatino/sigo-dental/internal/identity"
 	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
 	identityroutes "github.com/carlosfpatino/sigo-dental/internal/identity/routes"
+	"github.com/carlosfpatino/sigo-dental/middleware"
+	"github.com/carlosfpatino/sigo-dental/platform/authn"
 	"github.com/carlosfpatino/sigo-dental/platform/config"
 	"github.com/carlosfpatino/sigo-dental/platform/httpx"
 	"github.com/carlosfpatino/sigo-dental/platform/logging"
@@ -49,6 +51,11 @@ func main() {
 		os.Exit(1)
 	}
 	authService := identity.NewAuthService(identity.NewPostgresRepository(db), dummyHash)
+	tokens, err := authn.NewTokenManager(cfg.Auth.JWTSecret, authn.AccessTokenTTL)
+	if err != nil {
+		logger.Error("invalid token configuration", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize Redis (cache). If it fails, the API continues without cache.
 	redisClient := config.InitRedis(ctx, cfg.Redis, logger)
@@ -60,7 +67,7 @@ func main() {
 	// ctrls := controllers.NewControllers(repo, cacheRepo, db, redisClient)
 
 	app := newApp(logger)
-	identityroutes.Register(app, identity.NewLoginHandler(authService))
+	identityroutes.Register(app, identity.NewLoginHandler(authService, tokens), middleware.RequireAuth(tokens))
 
 	// Start server in a goroutine
 	go func() {

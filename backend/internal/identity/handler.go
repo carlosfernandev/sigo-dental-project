@@ -9,6 +9,8 @@ import (
 	"net/mail"
 	"strings"
 
+	"github.com/carlosfpatino/sigo-dental/middleware"
+	"github.com/carlosfpatino/sigo-dental/platform/authn"
 	"github.com/carlosfpatino/sigo-dental/platform/httpx"
 	"github.com/gofiber/fiber/v3"
 )
@@ -17,10 +19,11 @@ const maxLoginBodyBytes = 4096
 
 type LoginHandler struct {
 	service *AuthService
+	tokens  *authn.TokenManager
 }
 
-func NewLoginHandler(service *AuthService) *LoginHandler {
-	return &LoginHandler{service: service}
+func NewLoginHandler(service *AuthService, tokens *authn.TokenManager) *LoginHandler {
+	return &LoginHandler{service: service, tokens: tokens}
 }
 
 type loginRequest struct {
@@ -66,11 +69,32 @@ func (h *LoginHandler) Login(c fiber.Ctx) error {
 	if err != nil {
 		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "Error interno del servidor", err)
 	}
+	accessToken, expiresAt, err := h.tokens.Issue(user.ID, user.Role)
+	if err != nil {
+		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "Error interno del servidor", err)
+	}
 
 	return c.JSON(fiber.Map{"data": fiber.Map{
 		"status":               "authenticated",
 		"must_change_password": user.MustChangePassword,
+		"access_token":         accessToken,
+		"expires_at":           expiresAt,
 	}})
+}
+
+func (h *LoginHandler) Me(c fiber.Ctx) error {
+	principal, ok := requestPrincipal(c)
+	if !ok {
+		return httpx.NewError(fiber.StatusUnauthorized, "unauthorized", "Autenticación requerida", nil)
+	}
+	return c.JSON(fiber.Map{"data": fiber.Map{
+		"id":   principal.UserID,
+		"role": principal.Role,
+	}})
+}
+
+func requestPrincipal(c fiber.Ctx) (middleware.Principal, bool) {
+	return middleware.PrincipalFromContext(c)
 }
 
 func invalidLoginRequest() error {

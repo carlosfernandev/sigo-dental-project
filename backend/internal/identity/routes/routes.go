@@ -5,9 +5,12 @@ import "github.com/gofiber/fiber/v3"
 
 type loginHandler interface {
 	Login(c fiber.Ctx) error
+	Me(c fiber.Ctx) error
 }
 
 // Register mounts identity endpoints on the shared monolith router.
-func Register(router fiber.Router, handler loginHandler) {
+func Register(router fiber.Router, handler loginHandler, authMiddleware fiber.Handler) {
 	router.Post("/auth/login", handler.Login)
+	protected := router.Group("/auth", authMiddleware)
+	protected.Get("/me", handler.Me)
 }

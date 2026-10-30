@@ -8,15 +8,16 @@
 
 ## Current state (2026-10-29)
 
-**Backend foundation and identity login exist.** The repository has Go configuration, logging,
-PostgreSQL pool setup, a Fiber API bootstrap, a forward-only migration runner, the identity
-roles/users schema, a first-admin seed, and `POST /auth/login`. Sessions, MFA, user management,
-RBAC, and audit behavior are still pending.
+**Backend foundation and JWT login exist.** The repository has Go
+configuration, logging, PostgreSQL pool setup, a Fiber API bootstrap, a forward-only migration
+runner, the identity roles/users schema, a first-admin seed, `POST /auth/login`, and protected
+`GET /auth/me`. Idle timeout, user management, RBAC, and audit behavior are pending.
 
 | Path | Content |
 | --- | --- |
 | `docs/SRS_SIGO-Dental.md` | Requirements and scope authority. Spanish. |
-| `docs/specs/01-fundacion-identidad-auditoria.md` | Ordered backlog for foundation, identity, MFA, RBAC, and audit work. |
+| `docs/specs/01-fundacion-identidad-auditoria.md` | Concise implementation plan aligned with SRS scope and phases. |
+| `docs/decisiones/0001-auth-jwt.md` | Minimal JWT login choice and idle-timeout limitation. |
 | `REQUIREMENTS_CHECKLIST.md` | Progress, task IDs, and order. Backend before frontend. |
 | `AGENTS.md` | Stack, architecture, conventions, Go/React practices. |
 | `rules/GLOSSARY.md` | SRS-Spanish → English identifier map. |
@@ -28,10 +29,11 @@ RBAC, and audit behavior are still pending.
 | `backend/platform/migrate/` | Forward-only transactional PostgreSQL migration runner and tests. |
 | `backend/platform/httpx/` | Typed HTTP errors mapped by the central Fiber error handler. |
 | `backend/cache/` | Redis Cache-Aside adapter; Redis failures return cache misses and are logged. |
-| `backend/middleware/` | JWT HS256 authentication middleware and authenticated principal context. |
+| `backend/middleware/` | HS256 Bearer JWT authentication middleware and authenticated principal context. |
 | `backend/internal/identity/` | Identity persistence and first-admin seed use case. |
 | `backend/internal/identity/passwords/` | Password policy, bcrypt hashing, verification, and rehash. |
 | `backend/internal/identity/auth.go` | Login authentication use case and credential verification. |
+| `backend/platform/authn/` | JWT creation and validation plus the shared authenticated principal type. |
 | `backend/internal/identity/handler.go` | `POST /auth/login` HTTP validation and response mapping. |
 | `backend/internal/identity/routes/` | Identity HTTP route declarations, separate from handler logic. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
@@ -45,7 +47,7 @@ RBAC, and audit behavior are still pending.
 | `opencode.json` | Registers `rules/ahorro-tokens.md` as instructions. |
 | `.atl/skill-registry.md` | Auto-generated skill index. Do not hand-edit. |
 
-**Not implemented yet:** identity HTTP flows, sessions, MFA, RBAC, audit service, other domain
+**Not implemented yet:** 15-minute idle timeout, user administration, audit service, other domain
 modules, frontend scaffold, production deployment configuration, and CI execution. CI workflow
 configuration is present; the user requested running it last.
 

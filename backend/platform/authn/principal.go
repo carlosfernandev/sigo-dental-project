@@ -1,0 +1,74 @@
+// Package authn contains request identity types shared across HTTP boundaries.
+package authn
+
+import (
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+const AccessTokenTTL = 2 * time.Hour
+
+var ErrInvalidToken = errors.New("invalid token")
+
+type Principal struct {
+	UserID string
+	Role   string
+}
+
+type claims struct {
+	Role string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+type TokenManager struct {
+	secret []byte
+	ttl    time.Duration
+}
+
+func NewTokenManager(secret []byte, ttl time.Duration) (*TokenManager, error) {
+	if len(secret) < 32 {
+		return nil, errors.New("JWT secret must contain at least 32 bytes")
+	}
+	if ttl <= 0 {
+		return nil, errors.New("JWT lifetime must be positive")
+	}
+	return &TokenManager{secret: append([]byte(nil), secret...), ttl: ttl}, nil
+}
+
+func (m *TokenManager) Issue(userID, role string) (string, time.Time, error) {
+	now := time.Now().UTC()
+	expiresAt := now.Add(m.ttl)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
+		Role: role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+	})
+	signed, err := token.SignedString(m.secret)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("sign access token: %w", err)
+	}
+	return signed, expiresAt, nil
+}
+
+func (m *TokenManager) Validate(raw string) (Principal, error) {
+	if len(raw) == 0 || len(raw) > 8192 {
+		return Principal{}, ErrInvalidToken
+	}
+	parsedClaims := &claims{}
+	token, err := jwt.ParseWithClaims(raw, parsedClaims, func(token *jwt.Token) (any, error) {
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, ErrInvalidToken
+		}
+		return m.secret, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired(), jwt.WithIssuedAt())
+	if err != nil || token == nil || !token.Valid || parsedClaims.Subject == "" || parsedClaims.Role == "" || parsedClaims.IssuedAt == nil {
+		return Principal{}, ErrInvalidToken
+	}
+	return Principal{UserID: parsedClaims.Subject, Role: parsedClaims.Role}, nil
+}

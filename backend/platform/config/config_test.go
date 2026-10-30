@@ -15,6 +15,7 @@ func baseline() map[string]string {
 	return map[string]string{
 		"SIGO_ENV":            "",
 		"SIGO_LOG_LEVEL":      "",
+		"SIGO_JWT_SECRET":     "test-only-secret-with-more-than-32-bytes",
 		"SIGO_PG_HOST":        "localhost",
 		"SIGO_PG_PORT":        "",
 		"SIGO_PG_USER":        "sigo",

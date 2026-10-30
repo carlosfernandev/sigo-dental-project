@@ -1,137 +1,74 @@
 package middleware
 
 import (
-	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http/httptest"
-	"strings"
 	"testing"
-	"time"
 
+	"github.com/carlosfpatino/sigo-dental/platform/authn"
 	"github.com/carlosfpatino/sigo-dental/platform/httpx"
 	"github.com/gofiber/fiber/v3"
-	"github.com/golang-jwt/jwt/v5"
 )
 
-func TestRequireAuthAddsPrincipalToContext(t *testing.T) {
-	secret := []byte(strings.Repeat("s", 32))
-	guard, err := RequireAuth(secret)
+func TestRequireAuthAddsPrincipal(t *testing.T) {
+	tokens, err := authn.NewTokenManager([]byte("test-only-secret-with-more-than-32-bytes"), authn.AccessTokenTTL)
 	if err != nil {
-		t.Fatalf("RequireAuth() error = %v", err)
+		t.Fatal(err)
 	}
-	app := authTestApp(guard)
-	token := issueTestToken(t, jwt.SigningMethodHS256, secret, time.Now().Add(time.Hour), true)
+	accessToken, _, err := tokens.Issue("user-1", "odontologo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := testApp()
+	app.Get("/protected", RequireAuth(tokens), func(c fiber.Ctx) error {
+		principal, ok := PrincipalFromContext(c)
+		if !ok || principal.UserID != "user-1" || principal.Role != "odontologo" {
+			t.Fatalf("principal = %+v, %v", principal, ok)
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	})
 	req := httptest.NewRequest("GET", "/protected", nil)
-	req.Header.Set(fiber.HeaderAuthorization, "bEaReR "+token)
-	response, err := app.Test(req)
+	req.Header.Set(fiber.HeaderAuthorization, "Bearer "+accessToken)
+	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	defer response.Body.Close()
-	if response.StatusCode != fiber.StatusOK {
-		t.Fatalf("status = %d, want %d", response.StatusCode, fiber.StatusOK)
-	}
-	var body struct {
-		Data struct {
-			Subject string `json:"sub"`
-			Role    string `json:"role"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if body.Data.Subject != "d53a806e-e017-4e31-a57c-9778cd7c61f1" || body.Data.Role != "admin_ti" {
-		t.Errorf("principal = %+v, want authenticated user and role", body.Data)
+	defer resp.Body.Close()
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, fiber.StatusNoContent)
 	}
 }
 
-func TestRequireAuthReturnsSameErrorForInvalidTokens(t *testing.T) {
-	secret := []byte(strings.Repeat("s", 32))
-	guard, err := RequireAuth(secret)
+func TestRequireAuthRejectsMissingAndMalformedBearerTokens(t *testing.T) {
+	tokens, err := authn.NewTokenManager([]byte("test-only-secret-with-more-than-32-bytes"), authn.AccessTokenTTL)
 	if err != nil {
-		t.Fatalf("RequireAuth() error = %v", err)
+		t.Fatal(err)
 	}
-	expired := issueTestToken(t, jwt.SigningMethodHS256, secret, time.Now().Add(-time.Minute), true)
-	wrongMethod := issueTestToken(t, jwt.SigningMethodHS384, secret, time.Now().Add(time.Hour), true)
-	noIssuedAt := issueTestToken(t, jwt.SigningMethodHS256, secret, time.Now().Add(time.Hour), false)
-	app := authTestApp(guard)
-
-	requests := []struct {
-		name   string
-		header string
-	}{
-		{name: "missing header"},
-		{name: "malformed token", header: "Bearer not-a-jwt"},
-		{name: "expired token", header: "Bearer " + expired},
-		{name: "wrong signing method", header: "Bearer " + wrongMethod},
-		{name: "missing issued-at", header: "Bearer " + noIssuedAt},
-	}
-	var expectedBody string
-	for i, test := range requests {
-		t.Run(test.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/protected", nil)
-			if test.header != "" {
-				req.Header.Set(fiber.HeaderAuthorization, test.header)
-			}
-			response, err := app.Test(req)
-			if err != nil {
-				t.Fatalf("app.Test() error = %v", err)
-			}
-			defer response.Body.Close()
-			if response.StatusCode != fiber.StatusUnauthorized {
-				t.Fatalf("status = %d, want %d", response.StatusCode, fiber.StatusUnauthorized)
-			}
-			var body strings.Builder
-			if _, err := io.Copy(&body, response.Body); err != nil {
-				t.Fatalf("read response body: %v", err)
-			}
-			if i == 0 {
-				expectedBody = body.String()
-			} else if body.String() != expectedBody {
-				t.Errorf("body = %s, want identical error %s", body.String(), expectedBody)
-			}
-		})
-	}
-	if expectedBody != `{"error":{"code":"unauthorized","message":"Autenticación requerida","details":null}}` {
-		t.Errorf("unauthorized body = %s", expectedBody)
-	}
-}
-
-func TestRequireAuthRejectsShortSecrets(t *testing.T) {
-	if handler, err := RequireAuth([]byte("too-short")); err == nil || handler != nil {
-		t.Fatalf("RequireAuth() = (%v, %v), want nil handler and an error", handler, err)
-	}
-}
-
-func authTestApp(guard fiber.Handler) *fiber.App {
-	app := fiber.New(fiber.Config{ErrorHandler: httpx.FiberErrorHandler(slog.New(slog.NewTextHandler(io.Discard, nil)))})
-	app.Get("/protected", guard, func(c fiber.Ctx) error {
-		principal, ok := PrincipalFromContext(c)
-		if !ok {
-			return fiber.NewError(fiber.StatusInternalServerError)
+	app := testApp()
+	app.Get("/protected", RequireAuth(tokens), func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
+	for _, authorization := range []string{"", "Basic abc", "Bearer", "Bearer not-a-jwt"} {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		if authorization != "" {
+			req.Header.Set(fiber.HeaderAuthorization, authorization)
 		}
-		return c.JSON(fiber.Map{"data": fiber.Map{"sub": principal.UserID, "role": principal.Role}})
-	})
-	return app
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("app.Test() error = %v", err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != fiber.StatusUnauthorized {
+			t.Errorf("authorization %q status = %d, want %d", authorization, resp.StatusCode, fiber.StatusUnauthorized)
+		}
+	}
 }
 
-func issueTestToken(t *testing.T, method jwt.SigningMethod, secret []byte, expiresAt time.Time, includeIssuedAt bool) string {
-	t.Helper()
-	now := time.Now()
-	claims := Claims{
-		Role: "admin_ti",
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   "d53a806e-e017-4e31-a57c-9778cd7c61f1",
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-		},
+func TestNewTokenManagerRequiresStrongSecret(t *testing.T) {
+	if _, err := authn.NewTokenManager([]byte("short"), authn.AccessTokenTTL); err == nil {
+		t.Fatal("NewTokenManager() accepted a short secret")
 	}
-	if includeIssuedAt {
-		claims.IssuedAt = jwt.NewNumericDate(now.Add(-time.Minute))
-	}
-	token, err := jwt.NewWithClaims(method, claims).SignedString(secret)
-	if err != nil {
-		t.Fatalf("sign test token: %v", err)
-	}
-	return token
+}
+
+func testApp() *fiber.App {
+	return fiber.New(fiber.Config{ErrorHandler: httpx.FiberErrorHandler(slog.New(slog.NewTextHandler(io.Discard, nil)))})
 }

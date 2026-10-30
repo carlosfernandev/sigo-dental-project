@@ -2,7 +2,7 @@
 
 **Proyecto:** Sistema Integral de Gestión Odontológica y Expediente Clínico Digital (SIGO-Dental)
 **Destinatario:** Departamento de Tecnología de la Información (TI) / Equipo de Arquitectura y Desarrollo
-**Versión:** 1.0
+**Versión:** 1.2
 **Fecha:** 29 de octubre de 2026
 **Estado:** Para Revisión Técnica y Estimación
 
@@ -15,6 +15,8 @@
 | Versión | Fecha | Autor / Rol | Descripción del Cambio |
 |---|---|---|---|
 | 1.0 | 29/10/2026 | Líder Funcional / Clínica Odontológica | Levantamiento y consolidación inicial de requerimientos funcionales y técnicos. |
+| 1.1 | 30/10/2026 | Alcance del proyecto | Simplificación de RNF-05: RBAC y cierre por inactividad. |
+| 1.2 | 30/10/2026 | Alcance del proyecto | RF-12 aclara facturación dentro del sistema sin integración tributaria externa. |
 
 ### 1.2 Firmas de Aprobación
 
@@ -41,7 +43,7 @@ El presente documento define formalmente los requerimientos funcionales, no func
 
 ### 2.3 Alcance del Sistema
 
-- **Dentro del alcance:** Portal web y responsive para personal clínico y administrativo, odontograma interactivo 2D (con soporte para notación FDI y Universal), agenda de citas por sillón/odontólogo, emisión de planes de tratamiento y presupuestos, facturación electrónica y módulo de telemetría/auditoría.
+- **Dentro del alcance:** Portal web y responsive para personal clínico y administrativo, odontograma interactivo 2D (con soporte para notación FDI y Universal), agenda de citas por sillón/odontólogo, emisión de planes de tratamiento y presupuestos, registro y emisión de facturas dentro del sistema, y módulo de telemetría/auditoría.
 - **Fuera del alcance (Fase 1):** App móvil nativa (iOS/Android) para pacientes (se abordará mediante portal PWA en Fase 2); procesamiento directo de imágenes 3D DICOM (se utilizará visualización y almacenamiento de archivos planos/PACS externo en esta etapa).
 
 ---
@@ -89,7 +91,7 @@ El presente documento define formalmente los requerimientos funcionales, no func
 
 ### 4.5 Módulo: Facturación, Caja e Inventario
 
-- **RF-12 (Punto de Venta y Facturación Electrónica):** Emisión de comprobantes fiscales electrónicos autorizados por la autoridad tributaria local, admitiendo pagos mixtos (efectivo, tarjeta crédito/débito, transferencias, seguros).
+- **RF-12 (Punto de Venta y Facturación):** Registrar y emitir facturas dentro del sistema y admitir pagos mixtos (efectivo, tarjeta crédito/débito, transferencias, seguros). No incluye conexión con servicios de la autoridad tributaria ni envío fiscal externo.
 - **RF-13 (Liquidación de Honorarios a Profesionales):** Cálculo configurable de comisiones a odontólogos (porcentaje fijo, monto fijo por procedimiento o porcentaje tras deducir costos de laboratorio/materiales).
 - **RF-14 (Descargo Automático de Insumos Clínicos):** Deducción automática de stock de insumos y materiales (resinas, anestesias, guantes) al completar un procedimiento clínico según la receta estándar de consumo configurada.
 
@@ -110,7 +112,6 @@ El presente documento define formalmente los requerimientos funcionales, no func
   - Cifrado en reposo para bases de datos y blobs de almacenamiento utilizando algoritmos robustos (AES-256).
 - **RNF-05 (Autenticación y Autorización):**
   - Control de acceso basado en roles (RBAC) y principio de menor privilegio.
-  - Autenticación Multifactor (MFA) obligatoria para acceso a expedientes clínicos e información financiera.
   - Cierre automático de sesión tras 15 minutos de inactividad en estaciones de trabajo clínicas.
 - **RNF-06 (Trazabilidad y Auditoría):** Log inmutable de auditoría para cada acción CRUD sobre historias clínicas (quién consultó, modificó o exportó qué registro, con *timestamp* ISO-8601 y dirección IP de origen).
 
@@ -158,7 +159,6 @@ El presente documento define formalmente los requerimientos funcionales, no func
 
 ### 7.1 Puntos de Integración Requeridos (APIs Externas)
 
-- **API de Facturación Fiscal / Electrónica:** Integración REST para el timbrado/emisión de facturas y retenciones según la legislación nacional.
 - **Pasarela de Pagos:** Integración con proveedores locales de cobro digital (Stripe, dLocal o pasarelas bancarias autorizadas).
 - **Gateway de Mensajería:** Conexión con Meta Cloud API (WhatsApp Business) y Twilio para SMS/Email transaccional.
 - **PACS / Visor DICOM (Futuro):** Protocolos DICOM/HL7 para recepción directa de imágenes radiológicas panorámicas y periapicales.
