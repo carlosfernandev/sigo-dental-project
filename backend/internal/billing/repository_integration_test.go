@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/carlosfpatino/sigo-dental/platform/authn"
 	"github.com/carlosfpatino/sigo-dental/platform/migrate"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -59,29 +60,40 @@ func TestInvoiceRepositoryPostgresIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert patient: %v", err)
 	}
+	var cashierID string
+	err = db.QueryRow(ctx, `
+		INSERT INTO users (email, password_hash, role_id)
+		SELECT 'cashier-rn02@example.com', 'test-hash', id FROM roles WHERE name = $1
+		RETURNING id::text
+	`, authn.RoleReceptionistCashier).Scan(&cashierID)
+	if err != nil {
+		t.Fatalf("insert cashier: %v", err)
+	}
 
 	repository := NewPostgresRepository(db)
-	invoice, err := repository.CreateInvoice(ctx, Invoice{
+	service := NewService(repository)
+	principal := authn.Principal{UserID: cashierID, Role: authn.RoleReceptionistCashier}
+	invoice, err := service.CreateInvoice(ctx, principal, Invoice{
 		PatientID: patientID,
-		Items:     []InvoiceItem{{Description: "Dental cleaning", Quantity: 2, UnitPrice: 2500, Subtotal: 5000}},
-		Subtotal:  5000, Tax: 500, Total: 5500, Status: "issued",
+		Items:     []InvoiceItem{{Description: "Dental cleaning", Quantity: 2, UnitPrice: 2500}},
+		Tax:       500,
 	})
 	if err != nil {
 		t.Fatalf("CreateInvoice() error = %v", err)
 	}
 	reference := "transfer-123"
-	partial, err := repository.RegisterPayment(ctx, invoice.ID, Payment{Method: "cash", Amount: 1500})
+	partial, err := service.RegisterPayment(ctx, principal, invoice.ID, Payment{Method: "cash", Amount: 1500})
 	if err != nil || partial.Status != "issued" || len(partial.Payments) != 1 {
 		t.Fatalf("partial RegisterPayment() = status %q, payments %d, error %v", partial.Status, len(partial.Payments), err)
 	}
-	if _, err := repository.RegisterPayment(ctx, invoice.ID, Payment{Method: "transfer", Amount: 5000, Reference: &reference}); !errors.Is(err, ErrPaymentExceedsBalance) {
+	if _, err := service.RegisterPayment(ctx, principal, invoice.ID, Payment{Method: "transfer", Amount: 5000, Reference: &reference}); !errors.Is(err, ErrPaymentExceedsBalance) {
 		t.Fatalf("overpayment error = %v, want %v", err, ErrPaymentExceedsBalance)
 	}
-	paid, err := repository.RegisterPayment(ctx, invoice.ID, Payment{Method: "transfer", Amount: 4000, Reference: &reference})
+	paid, err := service.RegisterPayment(ctx, principal, invoice.ID, Payment{Method: "transfer", Amount: 4000, Reference: &reference})
 	if err != nil || paid.Status != "paid" || len(paid.Payments) != 2 {
 		t.Fatalf("final RegisterPayment() = status %q, payments %d, error %v", paid.Status, len(paid.Payments), err)
 	}
-	listed, err := repository.ListInvoicesByPatient(ctx, patientID)
+	listed, err := service.ListInvoicesByPatient(ctx, principal, patientID)
 	foundReference := false
 	if len(listed) == 1 {
 		for _, payment := range listed[0].Payments {
@@ -92,5 +104,12 @@ func TestInvoiceRepositoryPostgresIntegration(t *testing.T) {
 	}
 	if err != nil || len(listed) != 1 || listed[0].Items[0].Subtotal != 5000 || !foundReference {
 		t.Fatalf("ListInvoicesByPatient() = %+v, error %v", listed, err)
+	}
+	close, err := service.CloseCashRegister(ctx, principal, cashCloseRequest{ReportedCash: 1500, ReportedTransfers: 4000})
+	if err != nil || close.Status != "matched" || close.SystemCash != 1500 || close.SystemTransfers != 4000 {
+		t.Fatalf("CloseCashRegister() = %+v, error %v", close, err)
+	}
+	if _, err := service.CloseCashRegister(ctx, principal, cashCloseRequest{}); !errors.Is(err, ErrCashCloseExists) {
+		t.Fatalf("duplicate cash close error = %v, want %v", err, ErrCashCloseExists)
 	}
 }

@@ -9,7 +9,7 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | RF-07: catálogo de procedimientos médicos y presupuestos por fases/sesiones |
+| **Último trabajo completado** | RN-02: cierre de caja ciego con comparación de efectivo y vouchers |
 | **Siguiente requisito** | RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
@@ -68,10 +68,10 @@ El MVP cubre todos los RF, RN y RNF del SRS y funciona sin servicios de terceros
 
 - [x] RF-07: presupuestos por fases/sesiones, con honorarios, laboratorio y descuentos autorizados.
 - [ ] RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables.
-- [ ] RF-12: crear y emitir facturas dentro del sistema y registrar pagos mixtos; sin conexión
+- [x] RF-12: crear y emitir facturas dentro del sistema y registrar pagos mixtos; sin conexión
       tributaria externa ni pasarela de pagos (tarjeta, transferencia y seguro se registran con
       referencia).
-- [ ] RN-02: en el cierre de caja, ocultar el total teórico hasta recibir el conteo físico.
+- [x] RN-02: en el cierre de caja, ocultar el total teórico hasta recibir el conteo físico.
 - [ ] Portal web responsive para los flujos de esta fase (RNF-07 y RNF-08).
 
 ## Fase 2 — Core clínico

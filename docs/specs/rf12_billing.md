@@ -1,14 +1,15 @@
 # RF-12: Facturación Interna y Pagos
 
 **Dominio a modificar:** `internal/billing/`
+**Estado:** Hecho — API backend, persistencia transaccional y pagos mixtos implementados.
 
 ## 1. Base de Datos (Migraciones)
 
 - **Tabla `invoices` (Facturas):**
   - `id` UUID PK
   - `patient_id` UUID FK
-  - `total_amount` BIGINT: total en centavos (USD), nunca decimal ni punto flotante
-  - `status` VARCHAR (ej: 'pending', 'paid', 'voided')
+  - `subtotal`, `tax`, `total` BIGINT: importes en centavos (USD), nunca decimal ni punto flotante
+  - `status` VARCHAR (`draft`, `issued`, `paid` o `cancelled`)
   - `created_at`, `updated_at`
 - **Tabla `invoice_items` (Detalle de factura):**
   - `id` UUID PK
@@ -25,7 +26,7 @@
   - `reference` VARCHAR nullable; requerida para tarjeta, transferencia y seguro
   - `created_at`
 
-En Go, todos los campos monetarios (`total_amount`, `unit_price`, `subtotal` y `amount`) son
+En Go, todos los campos monetarios (`subtotal`, `tax`, `total`, `unit_price` y `amount`) son
 `int64` en centavos. No convertirlos a `float64` ni usar tipos decimales para cálculos. Los importes
 que recibe o devuelve la API también se expresan como enteros en centavos.
 

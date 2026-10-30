@@ -1,5 +1,6 @@
 # RN-02: Cierre de Caja Ciego
 **Dominio a modificar:** `internal/billing/` (o nuevo `internal/cashier/`)
+**Estado:** Hecho — el total teórico solo aparece en la respuesta del cierre enviado.
 
 ## 1. Base de Datos (Migración requerida)
 - Crear tabla `cash_register_closures`:
@@ -21,3 +22,9 @@
 ## 4. Reglas de Negocio Estrictas (`service.go`)
 - **Cierre Ciego:** El cajero envía el DTO *sin* saber cuánto hay en el sistema. El backend es el responsable de consultar las facturas pagadas hoy, sumar los montos según el método de pago, y comparar contra lo reportado.
 - Si hay diferencia (`reported_X` != `system_X`), el `status` es 'discrepant'.
+- `reported_cash` y `reported_transfers` son centavos enteros (USD). `system_transfers` suma pagos
+  con métodos `card`, `transfer` e `insurance`, reportados como vouchers/valores electrónicos.
+- Se toma como fecha del cierre el día local `America/Guayaquil`; una factura cuenta el día en que
+  pasa a `paid`. El cierre agrega todos sus componentes de pago por método.
+- El cuerpo de la solicitud acepta solo los dos conteos reportados. No existe endpoint de consulta
+  previa del cierre ni el servicio devuelve totales teóricos antes de guardar el conteo.

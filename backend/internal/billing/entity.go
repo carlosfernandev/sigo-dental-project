@@ -15,6 +15,8 @@ var (
 	ErrInvoiceNotFound       = errors.New("invoice not found")
 	ErrPaymentExceedsBalance = errors.New("payment exceeds invoice balance")
 	ErrInvoiceNotPayable     = errors.New("invoice is not payable")
+	ErrInvalidCashClose      = errors.New("invalid cash close")
+	ErrCashCloseExists       = errors.New("cash close already exists for date")
 )
 
 type Procedure struct {
@@ -78,4 +80,16 @@ type Invoice struct {
 	IssuedAt  *time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type CashClose struct {
+	ID                string    `json:"id"`
+	UserID            string    `json:"user_id"`
+	ClosureDate       string    `json:"closure_date"`
+	ReportedCash      int64     `json:"reported_cash"`
+	ReportedTransfers int64     `json:"reported_transfers"`
+	SystemCash        int64     `json:"system_cash"`
+	SystemTransfers   int64     `json:"system_transfers"`
+	Status            string    `json:"status"`
+	CreatedAt         time.Time `json:"created_at"`
 }

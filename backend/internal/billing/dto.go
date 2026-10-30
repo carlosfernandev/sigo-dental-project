@@ -77,6 +77,12 @@ type invoiceRequest struct {
 	Tax       int64                `json:"tax"`
 }
 
+// CashCloseRequest deliberately accepts only the receptionist's physical counts.
+type cashCloseRequest struct {
+	ReportedCash      int64 `json:"reported_cash"`
+	ReportedTransfers int64 `json:"reported_transfers"`
+}
+
 type invoiceResponse struct {
 	ID        string        `json:"id"`
 	PatientID string        `json:"patient_id"`

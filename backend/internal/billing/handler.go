@@ -209,6 +209,23 @@ func (h *Handler) ListInvoicesByPatient(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": responses})
 }
 
+// CloseCashRegister accepts the receptionist's physical counts before computing system totals.
+func (h *Handler) CloseCashRegister(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorized()
+	}
+	var request cashCloseRequest
+	if err := decodeRequest(c, &request); err != nil {
+		return invalidRequest()
+	}
+	closed, err := h.service.CloseCashRegister(c.Context(), principal, request)
+	if err != nil {
+		return billingError(err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": closed})
+}
+
 func decodeRequest(c fiber.Ctx, target any) error {
 	contentType, _, err := mime.ParseMediaType(c.Get(fiber.HeaderContentType))
 	if err != nil || !strings.EqualFold(contentType, fiber.MIMEApplicationJSON) || len(c.Body()) == 0 || len(c.Body()) > maxRequestBytes {
@@ -230,7 +247,7 @@ func billingError(err error) error {
 	switch {
 	case errors.Is(err, authn.ErrForbidden):
 		return httpx.NewError(fiber.StatusForbidden, "forbidden", "Permiso insuficiente", err)
-	case errors.Is(err, ErrInvalidProcedure), errors.Is(err, ErrInvalidQuote), errors.Is(err, ErrInvalidInvoice):
+	case errors.Is(err, ErrInvalidProcedure), errors.Is(err, ErrInvalidQuote), errors.Is(err, ErrInvalidInvoice), errors.Is(err, ErrInvalidCashClose):
 		return invalidRequest()
 	case errors.Is(err, ErrProcedureNotFound):
 		return httpx.NewError(fiber.StatusNotFound, "procedure_not_found", "Procedimiento no encontrado", err)
@@ -242,6 +259,8 @@ func billingError(err error) error {
 		return httpx.NewError(fiber.StatusConflict, "payment_exceeds_balance", "El pago supera el saldo pendiente", err)
 	case errors.Is(err, ErrInvoiceNotPayable):
 		return httpx.NewError(fiber.StatusConflict, "invoice_not_payable", "La factura no acepta pagos", err)
+	case errors.Is(err, ErrCashCloseExists):
+		return httpx.NewError(fiber.StatusConflict, "cash_close_exists", "El cierre de caja del día ya fue registrado", err)
 	default:
 		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "Error interno del servidor", err)
 	}

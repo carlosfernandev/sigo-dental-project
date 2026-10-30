@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,6 +25,20 @@ type Repository interface {
 
 	BeginInvoiceTx(ctx context.Context) (InvoiceTx, error)
 	ListInvoicesByPatient(ctx context.Context, patientID string) ([]Invoice, error)
+	BeginCashCloseTx(ctx context.Context) (CashCloseTx, error)
+}
+
+// CashCloseTx keeps the system totals private until the service has received the count request.
+type CashCloseTx interface {
+	SystemTotals(ctx context.Context, dayStart, nextDayStart time.Time) (CashTotals, error)
+	SaveCashClose(ctx context.Context, close CashClose) (CashClose, error)
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
+}
+
+type CashTotals struct {
+	Cash      int64
+	Transfers int64
 }
 
 // InvoiceTx is the billing domain's unit of work for atomic invoice and payment changes.
@@ -284,6 +300,54 @@ func (r *postgresInvoiceTx) LoadInvoice(ctx context.Context, invoiceID string) (
 func (r *postgresInvoiceTx) Commit(ctx context.Context) error { return r.tx.Commit(ctx) }
 
 func (r *postgresInvoiceTx) Rollback(ctx context.Context) error { return r.tx.Rollback(ctx) }
+
+type postgresCashCloseTx struct{ tx pgx.Tx }
+
+func (r *PostgresRepository) BeginCashCloseTx(ctx context.Context) (CashCloseTx, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin cash close transaction: %w", err)
+	}
+	return &postgresCashCloseTx{tx: tx}, nil
+}
+
+func (r *postgresCashCloseTx) SystemTotals(ctx context.Context, dayStart, nextDayStart time.Time) (CashTotals, error) {
+	var totals CashTotals
+	err := r.tx.QueryRow(ctx, `
+		SELECT
+			COALESCE(SUM(CASE WHEN p.method = 'cash' THEN p.amount ELSE 0 END), 0)::bigint,
+			COALESCE(SUM(CASE WHEN p.method IN ('card', 'transfer', 'insurance') THEN p.amount ELSE 0 END), 0)::bigint
+		FROM invoices AS i
+		JOIN payments AS p ON p.invoice_id = i.id
+		WHERE i.status = 'paid' AND i.updated_at >= $1 AND i.updated_at < $2
+	`, dayStart, nextDayStart).Scan(&totals.Cash, &totals.Transfers)
+	if err != nil {
+		return CashTotals{}, fmt.Errorf("calculate cash close totals: %w", err)
+	}
+	return totals, nil
+}
+
+func (r *postgresCashCloseTx) SaveCashClose(ctx context.Context, close CashClose) (CashClose, error) {
+	err := r.tx.QueryRow(ctx, `
+		INSERT INTO cash_register_closures (
+			user_id, closure_date, reported_cash, reported_transfers,
+			system_cash, system_transfers, status
+		) VALUES ($1::uuid, $2::date, $3, $4, $5, $6, $7)
+		RETURNING id::text, created_at
+	`, close.UserID, close.ClosureDate, close.ReportedCash, close.ReportedTransfers,
+		close.SystemCash, close.SystemTransfers, close.Status).Scan(&close.ID, &close.CreatedAt)
+	if err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+			return CashClose{}, ErrCashCloseExists
+		}
+		return CashClose{}, fmt.Errorf("save cash close: %w", err)
+	}
+	return close, nil
+}
+
+func (r *postgresCashCloseTx) Commit(ctx context.Context) error { return r.tx.Commit(ctx) }
+
+func (r *postgresCashCloseTx) Rollback(ctx context.Context) error { return r.tx.Rollback(ctx) }
 
 func (r *PostgresRepository) ListInvoicesByPatient(ctx context.Context, patientID string) ([]Invoice, error) {
 	rows, err := r.db.Query(ctx, `

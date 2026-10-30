@@ -19,6 +19,7 @@ type handler interface {
 	CreateInvoice(c fiber.Ctx) error
 	RegisterPayment(c fiber.Ctx) error
 	ListInvoicesByPatient(c fiber.Ctx) error
+	CloseCashRegister(c fiber.Ctx) error
 }
 
 func Register(router fiber.Router, h handler, authMiddleware fiber.Handler) {
@@ -43,4 +44,7 @@ func Register(router fiber.Router, h handler, authMiddleware fiber.Handler) {
 	invoices.Post("/", h.CreateInvoice)
 	invoices.Patch("/:id/pay", h.RegisterPayment)
 	invoices.Get("/patient/:patient_id", h.ListInvoicesByPatient)
+
+	cashRegister := router.Group("/cash-register", authMiddleware)
+	cashRegister.Post("/close", h.CloseCashRegister)
 }

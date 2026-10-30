@@ -21,8 +21,7 @@ FROM invoices AS i
 CROSS JOIN LATERAL jsonb_array_elements(
     CASE WHEN jsonb_typeof(i.items) = 'array' THEN i.items ELSE '[]'::jsonb END
 ) AS item
-WHERE
-  AND COALESCE(item->>'UnitPrice', item->>'unit_price', '0')::bigint > 0
+WHERE COALESCE(item->>'UnitPrice', item->>'unit_price', '0')::bigint > 0
   AND COALESCE(item->>'Quantity', item->>'quantity', '1')::integer BETWEEN 1 AND 100
   AND COALESCE(item->>'Subtotal', item->>'subtotal', item->>'Total', item->>'total', '0')::bigint > 0;
 

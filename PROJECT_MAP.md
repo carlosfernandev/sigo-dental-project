@@ -39,10 +39,14 @@ and `PUT /users`). Domain RBAC enforcement and audit behavior are pending.
 | `backend/internal/identity/users.go` | Admin-only user listing, creation, and update use cases with service-layer authorization. |
 | `backend/internal/identity/users_handler.go` | `/users` HTTP mapping. |
 | `backend/internal/identity/routes/` | Identity HTTP route declarations, separate from handler logic. |
+| `backend/internal/billing/` | Medical catalog, quotes, RF-12 invoices/payments, and RN-02 cash close. |
+| `backend/internal/billing/routes/` | Billing and invoice route declarations. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
 | `backend/cmd/migrate/main.go` | `go run ./cmd/migrate up` migration command. |
 | `backend/cmd/seed-admin/main.go` | `make seed-admin` initial SystemAdmin seed command. |
 | `backend/migrations/` | Versioned SQL migrations for the monolith. |
+| `backend/migrations/008_billing_invoice_lines_payments.sql` | Normalized invoice lines and payment records for RF-12. |
+| `backend/migrations/009_cash_register_closures.sql` | Daily blind cash register closure records for RN-02. |
 | `docs/decisiones/0002-password-hashing.md` | Owner-approved bcrypt cost and password policy. |
 | `deploy/docker-compose.yml` | Development PostgreSQL and Redis containers. |
 | `.github/workflows/ci.yml` | GitHub Actions checks, PostgreSQL integration service, vulnerability scan. |
@@ -50,8 +54,8 @@ and `PUT /users`). Domain RBAC enforcement and audit behavior are pending.
 | `opencode.json` | Registers `rules/ahorro-tokens.md` as instructions. |
 | `.atl/skill-registry.md` | Auto-generated skill index. Do not hand-edit. |
 
-**Not implemented yet:** domain RBAC enforcement, user administration, audit service, other domain
-modules, frontend scaffold, production deployment configuration, and CI execution. CI workflow
+**Not implemented yet:** domain RBAC enforcement for all use cases, clinical and inventory flows,
+frontend application scaffold, production deployment configuration, and CI execution. CI workflow
 configuration is present; the user requested running it last.
 
 ## Document precedence

@@ -3,6 +3,7 @@ package billing
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/carlosfpatino/sigo-dental/platform/authn"
@@ -180,6 +181,45 @@ func (s *Service) ListInvoicesByPatient(ctx context.Context, principal authn.Pri
 		return nil, ErrInvalidInvoice
 	}
 	return s.repo.ListInvoicesByPatient(ctx, patientID)
+}
+
+func (s *Service) CloseCashRegister(ctx context.Context, principal authn.Principal, request cashCloseRequest) (CashClose, error) {
+	if err := authn.RequireAnyRole(principal, authn.RoleReceptionistCashier); err != nil {
+		return CashClose{}, err
+	}
+	if !billingUUIDPattern.MatchString(principal.UserID) || request.ReportedCash < 0 || request.ReportedTransfers < 0 {
+		return CashClose{}, ErrInvalidCashClose
+	}
+	now := s.now()
+	localStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	nextLocalStart := localStart.AddDate(0, 0, 1)
+	close := CashClose{
+		UserID: principal.UserID, ClosureDate: localStart.Format("2006-01-02"),
+		ReportedCash: request.ReportedCash, ReportedTransfers: request.ReportedTransfers,
+	}
+	tx, err := s.repo.BeginCashCloseTx(ctx)
+	if err != nil {
+		return CashClose{}, err
+	}
+	defer tx.Rollback(ctx)
+	totals, err := tx.SystemTotals(ctx, localStart.UTC(), nextLocalStart.UTC())
+	if err != nil {
+		return CashClose{}, err
+	}
+	close.SystemCash = totals.Cash
+	close.SystemTransfers = totals.Transfers
+	close.Status = "matched"
+	if close.ReportedCash != close.SystemCash || close.ReportedTransfers != close.SystemTransfers {
+		close.Status = "discrepant"
+	}
+	saved, err := tx.SaveCashClose(ctx, close)
+	if err != nil {
+		return CashClose{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return CashClose{}, fmt.Errorf("commit cash close: %w", err)
+	}
+	return saved, nil
 }
 
 func requireAdminAccess(principal authn.Principal) error {
