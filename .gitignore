@@ -36,3 +36,6 @@ Thumbs.db
 .atl/
 opencode.json
 .gentle-ai-default-agent.json
+
+# Go local cache
+backend/.go-cache/
