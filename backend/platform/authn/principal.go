@@ -23,6 +23,16 @@ const (
 
 var ErrInvalidToken = errors.New("invalid token")
 var ErrForbidden = errors.New("forbidden")
+var ErrUnknownRole = errors.New("unknown role")
+
+func IsKnownRole(role string) bool {
+	switch role {
+	case RoleAdminTI, RoleReceptionistCashier, RoleDentist, RoleDentalAssistant, RoleAuditorAccountant:
+		return true
+	default:
+		return false
+	}
+}
 
 type Principal struct {
 	UserID   string

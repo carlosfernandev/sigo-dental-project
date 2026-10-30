@@ -66,6 +66,26 @@ func (r *fakeAuthRepository) ListUsers(_ context.Context) ([]identity.ManagedUse
 	return users, nil
 }
 
+func (r *fakeAuthRepository) CreateUser(_ context.Context, email, _ string, role string) (identity.ManagedUser, error) {
+	user := identity.ManagedUser{ID: "d53a806e-e017-4e31-a57c-9778cd7c61f2", Email: email, Role: role, IsActive: true}
+	if r.users == nil {
+		r.users = make(map[string]identity.AuthUser)
+	}
+	r.users[email] = identity.AuthUser{ID: user.ID, Email: email, Role: role, IsActive: true}
+	return user, nil
+}
+
+func (r *fakeAuthRepository) UpdateUser(_ context.Context, userID, role string, active bool) (identity.ManagedUser, error) {
+	for email, user := range r.users {
+		if user.ID == userID {
+			user.Role, user.IsActive = role, active
+			r.users[email] = user
+			return identity.ManagedUser{ID: user.ID, Email: email, Role: role, IsActive: active}, nil
+		}
+	}
+	return identity.ManagedUser{}, identity.ErrUserNotFound
+}
+
 func lowCostTestHash(t *testing.T, password string) string {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
@@ -206,6 +226,32 @@ func TestLoginIssuesBearerTokenAndMeValidatesIt(t *testing.T) {
 		t.Fatalf("admin /users = %d %s", usersResp.StatusCode, usersBody)
 	}
 
+	createReq := httptest.NewRequest("POST", "/users", strings.NewReader(`{"email":"dentist@example.com","password":"Dentist-Start-2026!","role":"odontologo"}`))
+	createReq.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	createReq.Header.Set(fiber.HeaderAuthorization, "Bearer "+body.Data.AccessToken)
+	createResp, err := app.Test(createReq, fiber.TestConfig{Timeout: 15 * time.Second})
+	if err != nil {
+		t.Fatalf("admin POST /users app.Test() error = %v", err)
+	}
+	createBody, _ := io.ReadAll(createResp.Body)
+	createResp.Body.Close()
+	if createResp.StatusCode != fiber.StatusCreated || !bytes.Contains(createBody, []byte(`"role":"odontologo"`)) || bytes.Contains(createBody, []byte("password")) {
+		t.Fatalf("admin POST /users = %d %s", createResp.StatusCode, createBody)
+	}
+
+	updateReq := httptest.NewRequest("PUT", "/users/d53a806e-e017-4e31-a57c-9778cd7c61f2", strings.NewReader(`{"role":"odontologo","is_active":false}`))
+	updateReq.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	updateReq.Header.Set(fiber.HeaderAuthorization, "Bearer "+body.Data.AccessToken)
+	updateResp, err := app.Test(updateReq)
+	if err != nil {
+		t.Fatalf("admin PUT /users app.Test() error = %v", err)
+	}
+	updateBody, _ := io.ReadAll(updateResp.Body)
+	updateResp.Body.Close()
+	if updateResp.StatusCode != fiber.StatusOK || !bytes.Contains(updateBody, []byte(`"is_active":false`)) {
+		t.Fatalf("admin PUT /users = %d %s", updateResp.StatusCode, updateBody)
+	}
+
 	receptionistToken, _, err := tokens.Issue("user-2", authn.RoleReceptionistCashier)
 	if err != nil {
 		t.Fatalf("issue receptionist token: %v", err)
@@ -220,6 +266,18 @@ func TestLoginIssuesBearerTokenAndMeValidatesIt(t *testing.T) {
 	forbiddenResp.Body.Close()
 	if forbiddenResp.StatusCode != fiber.StatusForbidden || !bytes.Contains(forbiddenBody, []byte(`"code":"forbidden"`)) {
 		t.Fatalf("non-admin /users = %d %s, want forbidden", forbiddenResp.StatusCode, forbiddenBody)
+	}
+	createForbiddenReq := httptest.NewRequest("POST", "/users", strings.NewReader(`{}`))
+	createForbiddenReq.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	createForbiddenReq.Header.Set(fiber.HeaderAuthorization, "Bearer "+receptionistToken)
+	createForbiddenResp, err := app.Test(createForbiddenReq)
+	if err != nil {
+		t.Fatalf("non-admin POST /users app.Test() error = %v", err)
+	}
+	createForbiddenBody, _ := io.ReadAll(createForbiddenResp.Body)
+	createForbiddenResp.Body.Close()
+	if createForbiddenResp.StatusCode != fiber.StatusForbidden || !bytes.Contains(createForbiddenBody, []byte(`"code":"forbidden"`)) {
+		t.Fatalf("non-admin POST /users = %d %s, want forbidden", createForbiddenResp.StatusCode, createForbiddenBody)
 	}
 
 	invalidReq := httptest.NewRequest("GET", "/auth/me", nil)

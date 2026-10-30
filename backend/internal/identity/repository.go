@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -108,4 +109,44 @@ func (r *PostgresRepository) ListUsers(ctx context.Context) ([]ManagedUser, erro
 		return nil, fmt.Errorf("read identity users: %w", err)
 	}
 	return users, nil
+}
+
+func (r *PostgresRepository) CreateUser(ctx context.Context, email, passwordHash, role string) (ManagedUser, error) {
+	var user ManagedUser
+	user.Role = role
+	err := r.db.QueryRow(ctx, `
+		INSERT INTO users (email, password_hash, role_id, is_active, must_change_password)
+		SELECT $1, $2, roles.id, true, false
+		FROM roles
+		WHERE roles.name = $3
+		RETURNING id::text, email, is_active
+	`, email, passwordHash, role).Scan(&user.ID, &user.Email, &user.IsActive)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ManagedUser{}, ErrEmailAlreadyExists
+		}
+		return ManagedUser{}, fmt.Errorf("insert identity user: %w", err)
+	}
+	return user, nil
+}
+
+func (r *PostgresRepository) UpdateUser(ctx context.Context, userID, role string, active bool) (ManagedUser, error) {
+	var user ManagedUser
+	user.Role = role
+	err := r.db.QueryRow(ctx, `
+		UPDATE users
+		SET role_id = (SELECT id FROM roles WHERE name = $2),
+		    is_active = $3,
+		    updated_at = now()
+		WHERE id = $1::uuid
+		RETURNING id::text, email, is_active
+	`, userID, role, active).Scan(&user.ID, &user.Email, &user.IsActive)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ManagedUser{}, ErrUserNotFound
+	}
+	if err != nil {
+		return ManagedUser{}, fmt.Errorf("update identity user: %w", err)
+	}
+	return user, nil
 }

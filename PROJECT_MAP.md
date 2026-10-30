@@ -11,8 +11,8 @@
 **Backend foundation and JWT login exist.** The repository has Go
 configuration, logging, PostgreSQL pool setup, a Fiber API bootstrap, a forward-only migration
 runner, the identity roles/users schema, a first-admin seed, `POST /auth/login`, protected
-`GET /auth/me`, 15-minute in-process idle timeout, and admin-only `GET /users`. Broader user
-management, domain RBAC enforcement, and audit behavior are pending.
+`GET /auth/me`, 15-minute in-process idle timeout, and admin-only user management (`GET`, `POST`,
+and `PUT /users`). Domain RBAC enforcement and audit behavior are pending.
 
 | Path | Content |
 | --- | --- |
@@ -36,8 +36,8 @@ management, domain RBAC enforcement, and audit behavior are pending.
 | `backend/internal/identity/auth.go` | Login authentication use case and credential verification. |
 | `backend/platform/authn/` | JWT creation/validation, principal, role check, and idle activity tracker. |
 | `backend/internal/identity/handler.go` | `POST /auth/login` HTTP validation and response mapping. |
-| `backend/internal/identity/users.go` | Admin-only user listing use case with service-layer authorization. |
-| `backend/internal/identity/users_handler.go` | `GET /users` HTTP mapping. |
+| `backend/internal/identity/users.go` | Admin-only user listing, creation, and update use cases with service-layer authorization. |
+| `backend/internal/identity/users_handler.go` | `/users` HTTP mapping. |
 | `backend/internal/identity/routes/` | Identity HTTP route declarations, separate from handler logic. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
 | `backend/cmd/migrate/main.go` | `go run ./cmd/migrate up` migration command. |

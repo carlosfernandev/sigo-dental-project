@@ -9,8 +9,8 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | RNF-05: timeout de inactividad; `GET /users` restringido a `admin_ti` |
-| **Siguiente requisito** | Completar gestión de usuarios para `admin_ti` según su perfil en el SRS |
+| **Último trabajo completado** | RNF-05: timeout de inactividad y gestión de usuarios limitada a `admin_ti` |
+| **Siguiente requisito** | RF-01: comenzar ficha de paciente con acceso por rol definido por el SRS |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
 
@@ -32,11 +32,11 @@
 - [x] `POST /auth/login` valida credenciales y emite JWT HS256.
 - [x] `middleware.RequireAuth` valida el Bearer token y expone usuario/rol.
 - [ ] RNF-05: aplicar la matriz RBAC a los casos de uso de cada dominio cuando se implementen.
-- [ ] `admin_ti` puede gestionar usuarios, como indica la descripción de su rol en el SRS.
-- [x] RBAC en identidad: `GET /users` solo permite `admin_ti`; otros roles reciben `403`.
+- [x] `admin_ti` gestiona usuarios: listar, crear y actualizar rol/estado; no se permite borrar cuentas.
+- [x] RBAC en identidad: `/users` solo permite `admin_ti`; otros roles reciben `403`.
 - [x] RNF-05: cerrar acceso tras 15 minutos de inactividad; el middleware rechaza las solicitudes
       autenticadas y requiere volver a iniciar sesión. El seguimiento vive en memoria del monolito.
-- [x] `authn.RequireAnyRole` aplicado al caso de uso de listado de usuarios.
+- [x] `authn.RequireAnyRole` aplicado en los casos de uso de administración de usuarios.
 
 ### Pacientes y catálogo médico
 
