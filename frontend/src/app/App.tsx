@@ -9,7 +9,6 @@ const DashboardPage = lazy(() => import("../features/dashboard/pages/DashboardPa
 const PatientsPage = lazy(() => import("../features/patients/pages/PatientsPage").then((module) => ({ default: module.PatientsPage })));
 const SchedulingPage = lazy(() => import("../features/scheduling/pages/SchedulingPage").then((module) => ({ default: module.SchedulingPage })));
 const BillingPage = lazy(() => import("../features/billing/pages/BillingPage").then((module) => ({ default: module.BillingPage })));
-const RegisterUserPage = lazy(() => import("../features/users/pages/RegisterUserPage").then((module) => ({ default: module.RegisterUserPage })));
 const UsersPage = lazy(() => import("../features/users/pages/UsersPage").then((module) => ({ default: module.UsersPage })));
 
 function PublicLayout() {
@@ -70,7 +69,7 @@ export function App() {
           <Route path="/billing" element={<Suspense fallback={<SessionLoading />}><BillingPage /></Suspense>} />
           <Route element={<AdminOnlyLayout />}>
             <Route path="/users" element={<Suspense fallback={<SessionLoading />}><UsersPage /></Suspense>} />
-            <Route path="/users/new" element={<Suspense fallback={<SessionLoading />}><RegisterUserPage /></Suspense>} />
+            <Route path="/users/new" element={<Suspense fallback={<SessionLoading />}><UsersPage /></Suspense>} />
             <Route path="/admin/users" element={<Navigate to="/users" replace />} />
           </Route>
         </Route>

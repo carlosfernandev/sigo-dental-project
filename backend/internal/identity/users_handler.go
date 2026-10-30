@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"mime"
+	"strconv"
 	"strings"
 
 	"github.com/carlosfpatino/sigo-dental/middleware"
@@ -27,12 +28,13 @@ func (h *UserAdminHandler) ListUsers(c fiber.Ctx) error {
 	if !ok {
 		return httpx.NewError(fiber.StatusUnauthorized, "unauthorized", "Autenticación requerida", nil)
 	}
-	users, err := h.service.ListUsers(c.Context(), principal)
-	if errors.Is(err, authn.ErrForbidden) {
-		return httpx.NewError(fiber.StatusForbidden, "forbidden", "Permiso insuficiente", err)
-	}
+	filter, err := userListFilterFromRequest(c)
 	if err != nil {
-		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "Error interno del servidor", err)
+		return invalidUserAdminRequest()
+	}
+	users, err := h.service.ListUsers(c.Context(), principal, filter)
+	if err != nil {
+		return userAdminError(err)
 	}
 	return c.JSON(fiber.Map{"data": users})
 }
@@ -98,10 +100,10 @@ func (h *UserAdminHandler) UpdateUser(c fiber.Ctx) error {
 		return unauthorizedUserAdmin()
 	}
 	var request updateUserRequest
-	if err := decodeUserAdminRequest(c, &request); err != nil || request.IsActive == nil {
+	if err := decodeUserAdminRequest(c, &request); err != nil || request.Role == "" {
 		return invalidUserAdminRequest()
 	}
-	user, err := h.service.UpdateUser(c.Context(), principal, c.Params("id"), request.Role, *request.IsActive)
+	user, err := h.service.UpdateUser(c.Context(), principal, c.Params("id"), request.Role, request.IsActive)
 	if err != nil {
 		return userAdminError(err)
 	}
@@ -113,10 +115,50 @@ func (h *UserAdminHandler) DeleteUser(c fiber.Ctx) error {
 	if !ok {
 		return unauthorizedUserAdmin()
 	}
-	if _, err := h.service.DeactivateUser(c.Context(), principal, c.Params("id")); err != nil {
+	var request struct {
+		Reason string `json:"reason"`
+	}
+	if err := decodeUserAdminRequest(c, &request); err != nil {
+		return invalidUserAdminRequest()
+	}
+	if _, err := h.service.DeactivateUser(c.Context(), principal, c.Params("id"), request.Reason); err != nil {
 		return userAdminError(err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func userListFilterFromRequest(c fiber.Ctx) (UserListFilter, error) {
+	page, err := queryInt(c.Query("page"), 1)
+	if err != nil {
+		return UserListFilter{}, err
+	}
+	pageSize, err := queryInt(c.Query("page_size"), 25)
+	if err != nil {
+		return UserListFilter{}, err
+	}
+	filter := UserListFilter{
+		Page: page, PageSize: pageSize, Search: c.Query("search"), Role: c.Query("role"),
+		SortBy: c.Query("sort_by"), SortOrder: c.Query("sort_order"),
+	}
+	if active := c.Query("is_active"); active != "" {
+		parsed, err := strconv.ParseBool(active)
+		if err != nil {
+			return UserListFilter{}, err
+		}
+		filter.IsActive = &parsed
+	}
+	return filter, nil
+}
+
+func queryInt(value string, fallback int) (int, error) {
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, err
+	}
+	return parsed, nil
 }
 
 func decodeUserAdminRequest(c fiber.Ctx, target any) error {

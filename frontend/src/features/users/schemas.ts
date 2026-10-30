@@ -41,4 +41,8 @@ export const createUserSchema = emailPasswordSchema.and(z.object({
   role_id: z.enum(userRoles, { message: "Selecciona un rol." }),
 }));
 
+export const updateUserFormSchema = z.object({
+  role_id: z.enum(userRoles, { message: "Selecciona un rol." }),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
