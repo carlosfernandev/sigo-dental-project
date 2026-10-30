@@ -9,6 +9,7 @@ import (
 
 	"github.com/carlosfpatino/sigo-dental/internal/identity"
 	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
+	identityroutes "github.com/carlosfpatino/sigo-dental/internal/identity/routes"
 	"github.com/carlosfpatino/sigo-dental/platform/config"
 	"github.com/carlosfpatino/sigo-dental/platform/httpx"
 	"github.com/carlosfpatino/sigo-dental/platform/logging"
@@ -59,7 +60,7 @@ func main() {
 	// ctrls := controllers.NewControllers(repo, cacheRepo, db, redisClient)
 
 	app := newApp(logger)
-	identity.NewLoginHandler(authService).RegisterRoutes(app)
+	identityroutes.Register(app, identity.NewLoginHandler(authService))
 
 	// Start server in a goroutine
 	go func() {

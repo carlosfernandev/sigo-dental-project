@@ -109,6 +109,9 @@ Each domain module is flat and self-contained:
 | `handler.go` | Fiber HTTP mapping only. |
 | `dto.go` | Request/response shapes and validation. |
 
+HTTP route declarations belong in a `routes/` subpackage inside their owning domain
+(for example, `internal/identity/routes`); handlers only map HTTP input/output to use cases.
+
 Cross-cutting packages live in `backend/cache` and `backend/middleware`; domain services receive
 their interfaces through dependency injection. Authentication middleware establishes identity
 from a validated JWT. It does not replace the owning service's authorization checks.

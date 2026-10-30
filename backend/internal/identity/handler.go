@@ -23,10 +23,6 @@ func NewLoginHandler(service *AuthService) *LoginHandler {
 	return &LoginHandler{service: service}
 }
 
-func (h *LoginHandler) RegisterRoutes(router fiber.Router) {
-	router.Post("/auth/login", h.Login)
-}
-
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

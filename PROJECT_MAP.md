@@ -33,6 +33,7 @@ RBAC, and audit behavior are still pending.
 | `backend/internal/identity/passwords/` | Password policy, bcrypt hashing, verification, and rehash. |
 | `backend/internal/identity/auth.go` | Login authentication use case and credential verification. |
 | `backend/internal/identity/handler.go` | `POST /auth/login` HTTP validation and response mapping. |
+| `backend/internal/identity/routes/` | Identity HTTP route declarations, separate from handler logic. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
 | `backend/cmd/migrate/main.go` | `go run ./cmd/migrate up` migration command. |
 | `backend/cmd/seed-admin/main.go` | `make seed-admin` initial SystemAdmin seed command. |

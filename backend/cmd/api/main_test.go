@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/carlosfpatino/sigo-dental/internal/identity"
+	identityroutes "github.com/carlosfpatino/sigo-dental/internal/identity/routes"
 	"github.com/gofiber/fiber/v3"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -73,7 +74,7 @@ func TestLoginErrorsAreIndistinguishable(t *testing.T) {
 		"inactive@example.com": {Email: "inactive@example.com", PasswordHash: passwordHash, IsActive: false},
 	}}
 	app := newApp(slog.New(slog.NewTextHandler(io.Discard, nil)))
-	identity.NewLoginHandler(identity.NewAuthService(repository, dummyHash)).RegisterRoutes(app)
+	identityroutes.Register(app, identity.NewLoginHandler(identity.NewAuthService(repository, dummyHash)))
 
 	requests := []struct {
 		name     string
@@ -118,7 +119,7 @@ func TestLoginErrorsAreIndistinguishable(t *testing.T) {
 
 func TestLoginRejectsMalformedRequests(t *testing.T) {
 	app := newApp(slog.New(slog.NewTextHandler(io.Discard, nil)))
-	identity.NewLoginHandler(identity.NewAuthService(&fakeAuthRepository{}, "unused")).RegisterRoutes(app)
+	identityroutes.Register(app, identity.NewLoginHandler(identity.NewAuthService(&fakeAuthRepository{}, "unused")))
 
 	tests := []struct {
 		name        string
@@ -162,7 +163,7 @@ func TestLoginReturnsInternalAuthenticatedResult(t *testing.T) {
 		},
 	}}
 	app := newApp(slog.New(slog.NewTextHandler(io.Discard, nil)))
-	identity.NewLoginHandler(identity.NewAuthService(repository, dummyHash)).RegisterRoutes(app)
+	identityroutes.Register(app, identity.NewLoginHandler(identity.NewAuthService(repository, dummyHash)))
 	req := httptest.NewRequest("POST", "/auth/login", strings.NewReader(`{"email":"ADMIN@example.com","password":"`+password+`"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 15 * time.Second})
