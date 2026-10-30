@@ -9,7 +9,7 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | RNF-05: timeout de inactividad y gestión de usuarios limitada a `admin_ti` |
+| **Último trabajo completado** | `/health` verifica PostgreSQL y reporta Redis degradado; identidad protegida por RBAC |
 | **Siguiente requisito** | RF-01: comenzar ficha de paciente con acceso por rol definido por el SRS |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
@@ -21,7 +21,7 @@
 - [x] Migraciones SQL forward-only y seed del primer administrador.
 - [x] Redis configurado para caché; sus errores no deben hacer indisponible el sistema.
 - [x] Estructura por dominio y utilidades compartidas `platform`, `cache` y `middleware`.
-- [ ] `GET /health` comprueba PostgreSQL (503 si no responde) y Redis (degradado, manteniendo 200).
+- [x] `GET /health` comprueba PostgreSQL (503 si no responde) y Redis (degradado, manteniendo 200).
 - [ ] CI: ejecutar al final del alcance, según instrucción del usuario.
 
 ## Fase 1 — Core administrativo y turnos

@@ -6,10 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/carlosfpatino/sigo-dental/internal/identity"
 	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
 	identityroutes "github.com/carlosfpatino/sigo-dental/internal/identity/routes"
+	"github.com/carlosfpatino/sigo-dental/internal/patient"
+	patientroutes "github.com/carlosfpatino/sigo-dental/internal/patient/routes"
 	"github.com/carlosfpatino/sigo-dental/middleware"
 	"github.com/carlosfpatino/sigo-dental/platform/authn"
 	"github.com/carlosfpatino/sigo-dental/platform/config"
@@ -17,6 +20,7 @@ import (
 	"github.com/carlosfpatino/sigo-dental/platform/logging"
 	"github.com/gofiber/fiber/v3"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -67,10 +71,14 @@ func main() {
 	// cacheRepo := cache.NewRedisCache(redisClient)
 	// ctrls := controllers.NewControllers(repo, cacheRepo, db, redisClient)
 
-	app := newApp(logger)
+	app := newApp(logger, db, redisHealthPinger{client: redisClient})
 	identityroutes.Register(app,
 		identity.NewLoginHandler(authService, tokens),
 		identity.NewUserAdminHandler(identity.NewUserAdminService(identity.NewPostgresRepository(db))),
+		middleware.RequireAuth(tokens, activity),
+	)
+	patientroutes.Register(app,
+		patient.NewHandler(patient.NewService(patient.NewPostgresRepository(db))),
 		middleware.RequireAuth(tokens, activity),
 	)
 
@@ -96,7 +104,19 @@ func main() {
 	logger.Info("shutdown complete")
 }
 
-func newApp(logger *slog.Logger) *fiber.App {
+type healthPinger interface {
+	Ping(context.Context) error
+}
+
+type redisHealthPinger struct {
+	client *redis.Client
+}
+
+func (p redisHealthPinger) Ping(ctx context.Context) error {
+	return p.client.Ping(ctx).Err()
+}
+
+func newApp(logger *slog.Logger, postgresHealth, redisHealth healthPinger) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: httpx.FiberErrorHandler(logger),
 	})
@@ -111,13 +131,33 @@ func newApp(logger *slog.Logger) *fiber.App {
 	// 	AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	// }))
 
-	// Health check endpoint
-	app.Get("/health", func(c fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
-	})
+	app.Get("/health", healthHandler(postgresHealth, redisHealth))
 
 	// TODO: Register routes with controllers here
 	// routes.SetupRoutes(app, ctrls)
 
 	return app
+}
+
+func healthHandler(postgresHealth, redisHealth healthPinger) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+		defer cancel()
+		if postgresHealth == nil || postgresHealth.Ping(ctx) != nil {
+			return httpx.NewError(fiber.StatusServiceUnavailable, "postgres_unavailable", "Base de datos no disponible", nil)
+		}
+
+		redisStatus := "ok"
+		if redisHealth == nil || redisHealth.Ping(ctx) != nil {
+			redisStatus = "degraded"
+		}
+		status := "ok"
+		if redisStatus == "degraded" {
+			status = "degraded"
+		}
+		return c.JSON(fiber.Map{"data": fiber.Map{
+			"status":       status,
+			"dependencies": fiber.Map{"postgres": "ok", "redis": redisStatus},
+		}})
+	}
 }

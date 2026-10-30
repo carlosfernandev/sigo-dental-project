@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http/httptest"
@@ -22,7 +23,7 @@ import (
 const testJWTSecret = "test-only-secret-with-more-than-32-bytes"
 
 func TestHealth(t *testing.T) {
-	app := newApp(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	app := newTestApp()
 	resp, err := app.Test(httptest.NewRequest("GET", "/health", nil))
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
@@ -35,9 +36,44 @@ func TestHealth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read response body: %v", err)
 	}
-	if got, want := string(body), `{"status":"ok"}`; got != want {
+	if got, want := string(body), `{"data":{"dependencies":{"postgres":"ok","redis":"ok"},"status":"ok"}}`; got != want {
 		t.Errorf("body = %s, want %s", got, want)
 	}
+}
+
+func TestHealthDegradesForRedisAndFailsForPostgres(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	for _, tc := range []struct {
+		name       string
+		pgErr      error
+		redisErr   error
+		wantStatus int
+		wantBody   string
+	}{
+		{name: "redis degraded", redisErr: errors.New("redis down"), wantStatus: fiber.StatusOK, wantBody: `"status":"degraded"`},
+		{name: "postgres unavailable", pgErr: errors.New("postgres down"), wantStatus: fiber.StatusServiceUnavailable, wantBody: `"code":"postgres_unavailable"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newApp(logger, fakeHealthPinger{err: tc.pgErr}, fakeHealthPinger{err: tc.redisErr})
+			resp, err := app.Test(httptest.NewRequest("GET", "/health", nil))
+			if err != nil {
+				t.Fatalf("app.Test() error = %v", err)
+			}
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			if resp.StatusCode != tc.wantStatus || !bytes.Contains(body, []byte(tc.wantBody)) {
+				t.Fatalf("health = %d %s, want status %d containing %s", resp.StatusCode, body, tc.wantStatus, tc.wantBody)
+			}
+		})
+	}
+}
+
+type fakeHealthPinger struct{ err error }
+
+func (p fakeHealthPinger) Ping(context.Context) error { return p.err }
+
+func newTestApp() *fiber.App {
+	return newApp(slog.New(slog.NewTextHandler(io.Discard, nil)), fakeHealthPinger{}, fakeHealthPinger{})
 }
 
 type fakeAuthRepository struct {
@@ -115,7 +151,7 @@ func TestLoginErrorsAreIndistinguishable(t *testing.T) {
 		"wrong@example.com":    {Email: "wrong@example.com", PasswordHash: passwordHash, IsActive: true},
 		"inactive@example.com": {Email: "inactive@example.com", PasswordHash: passwordHash, IsActive: false},
 	}}
-	app := newApp(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	app := newTestApp()
 	registerLogin(app, repository, dummyHash)
 	requests := []struct {
 		name, email, password string
@@ -152,7 +188,7 @@ func TestLoginErrorsAreIndistinguishable(t *testing.T) {
 }
 
 func TestLoginRejectsMalformedRequest(t *testing.T) {
-	app := newApp(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	app := newTestApp()
 	registerLogin(app, &fakeAuthRepository{}, "unused")
 	req := httptest.NewRequest("POST", "/auth/login", strings.NewReader(`{"email":`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
@@ -174,7 +210,7 @@ func TestLoginIssuesBearerTokenAndMeValidatesIt(t *testing.T) {
 		ID: "d53a806e-e017-4e31-a57c-9778cd7c61f1", Email: "admin@example.com",
 		PasswordHash: passwordHash, Role: "admin_ti", IsActive: true, MustChangePassword: true,
 	}
-	app := newApp(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	app := newTestApp()
 	tokens := registerLogin(app, &fakeAuthRepository{users: map[string]identity.AuthUser{user.Email: user}}, dummyHash)
 	req := httptest.NewRequest("POST", "/auth/login", strings.NewReader(`{"email":"admin@example.com","password":"`+password+`"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
