@@ -58,6 +58,14 @@ func (r *fakeAuthRepository) UpdatePasswordHash(_ context.Context, _ string, pas
 	return nil
 }
 
+func (r *fakeAuthRepository) ListUsers(_ context.Context) ([]identity.ManagedUser, error) {
+	users := make([]identity.ManagedUser, 0, len(r.users))
+	for _, user := range r.users {
+		users = append(users, identity.ManagedUser{ID: user.ID, Email: user.Email, Role: user.Role, IsActive: user.IsActive})
+	}
+	return users, nil
+}
+
 func lowCostTestHash(t *testing.T, password string) string {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
@@ -74,6 +82,7 @@ func registerLogin(app *fiber.App, repository *fakeAuthRepository, dummyHash str
 	}
 	identityroutes.Register(app,
 		identity.NewLoginHandler(identity.NewAuthService(repository, dummyHash), tokens),
+		identity.NewUserAdminHandler(identity.NewUserAdminService(repository)),
 		middleware.RequireAuth(tokens, authn.NewActivityTracker()))
 	return tokens
 }
@@ -183,6 +192,34 @@ func TestLoginIssuesBearerTokenAndMeValidatesIt(t *testing.T) {
 	meResp.Body.Close()
 	if meResp.StatusCode != fiber.StatusOK || !bytes.Contains(meBody, []byte(`"role":"admin_ti"`)) {
 		t.Fatalf("/auth/me = %d %s", meResp.StatusCode, meBody)
+	}
+
+	usersReq := httptest.NewRequest("GET", "/users", nil)
+	usersReq.Header.Set(fiber.HeaderAuthorization, "Bearer "+body.Data.AccessToken)
+	usersResp, err := app.Test(usersReq)
+	if err != nil {
+		t.Fatalf("admin /users app.Test() error = %v", err)
+	}
+	usersBody, _ := io.ReadAll(usersResp.Body)
+	usersResp.Body.Close()
+	if usersResp.StatusCode != fiber.StatusOK || !bytes.Contains(usersBody, []byte(`"email":"admin@example.com"`)) || bytes.Contains(usersBody, []byte("password_hash")) {
+		t.Fatalf("admin /users = %d %s", usersResp.StatusCode, usersBody)
+	}
+
+	receptionistToken, _, err := tokens.Issue("user-2", authn.RoleReceptionistCashier)
+	if err != nil {
+		t.Fatalf("issue receptionist token: %v", err)
+	}
+	forbiddenReq := httptest.NewRequest("GET", "/users", nil)
+	forbiddenReq.Header.Set(fiber.HeaderAuthorization, "Bearer "+receptionistToken)
+	forbiddenResp, err := app.Test(forbiddenReq)
+	if err != nil {
+		t.Fatalf("non-admin /users app.Test() error = %v", err)
+	}
+	forbiddenBody, _ := io.ReadAll(forbiddenResp.Body)
+	forbiddenResp.Body.Close()
+	if forbiddenResp.StatusCode != fiber.StatusForbidden || !bytes.Contains(forbiddenBody, []byte(`"code":"forbidden"`)) {
+		t.Fatalf("non-admin /users = %d %s, want forbidden", forbiddenResp.StatusCode, forbiddenBody)
 	}
 
 	invalidReq := httptest.NewRequest("GET", "/auth/me", nil)

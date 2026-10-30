@@ -24,7 +24,7 @@ Roles del SRS: `admin_ti`, `recepcionista_cajero`, `odontologo`, `asistente_dent
 
 - `POST /auth/login` y middleware JWT Bearer: implementados.
 - Helper `authn.RequireAnyRole` disponible; conectar los permisos RBAC definidos por el SRS a cada
-  caso de uso conforme se implementen los endpoints de dominio.
+  caso de uso conforme se implementen los endpoints de dominio. `GET /users` ya exige `admin_ti`.
 - Gestión de usuarios por `admin_ti`, limitada a lo que implica ese perfil en la sección 3 del SRS:
   pendiente.
 - Cierre tras 15 minutos de inactividad en estaciones clínicas: implementado por el middleware.

@@ -8,9 +8,14 @@ type loginHandler interface {
 	Me(c fiber.Ctx) error
 }
 
+type userAdminHandler interface {
+	ListUsers(c fiber.Ctx) error
+}
+
 // Register mounts identity endpoints on the shared monolith router.
-func Register(router fiber.Router, handler loginHandler, authMiddleware fiber.Handler) {
+func Register(router fiber.Router, handler loginHandler, users userAdminHandler, authMiddleware fiber.Handler) {
 	router.Post("/auth/login", handler.Login)
 	protected := router.Group("/auth", authMiddleware)
 	protected.Get("/me", handler.Me)
+	router.Get("/users", authMiddleware, users.ListUsers)
 }

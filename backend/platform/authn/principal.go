@@ -13,6 +13,14 @@ import (
 
 const AccessTokenTTL = 2 * time.Hour
 
+const (
+	RoleAdminTI             = "admin_ti"
+	RoleReceptionistCashier = "recepcionista_cajero"
+	RoleDentist             = "odontologo"
+	RoleDentalAssistant     = "asistente_dental"
+	RoleAuditorAccountant   = "auditor_contador"
+)
+
 var ErrInvalidToken = errors.New("invalid token")
 var ErrForbidden = errors.New("forbidden")
 

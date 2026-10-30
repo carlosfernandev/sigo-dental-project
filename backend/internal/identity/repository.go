@@ -14,6 +14,13 @@ type PostgresRepository struct {
 	db *pgxpool.Pool
 }
 
+type ManagedUser struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+	IsActive bool   `json:"is_active"`
+}
+
 func NewPostgresRepository(db *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
@@ -74,4 +81,31 @@ func (r *PostgresRepository) UpdatePasswordHash(ctx context.Context, userID, pas
 		return fmt.Errorf("update identity password hash: user no longer exists")
 	}
 	return nil
+}
+
+// ListUsers returns account fields suitable for the administrator user list.
+func (r *PostgresRepository) ListUsers(ctx context.Context) ([]ManagedUser, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT users.id::text, users.email, roles.name, users.is_active
+		FROM users
+	JOIN roles ON roles.id = users.role_id
+		ORDER BY users.email
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list identity users: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]ManagedUser, 0)
+	for rows.Next() {
+		var user ManagedUser
+		if err := rows.Scan(&user.ID, &user.Email, &user.Role, &user.IsActive); err != nil {
+			return nil, fmt.Errorf("scan identity user: %w", err)
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read identity users: %w", err)
+	}
+	return users, nil
 }

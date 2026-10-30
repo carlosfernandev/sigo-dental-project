@@ -68,7 +68,11 @@ func main() {
 	// ctrls := controllers.NewControllers(repo, cacheRepo, db, redisClient)
 
 	app := newApp(logger)
-	identityroutes.Register(app, identity.NewLoginHandler(authService, tokens), middleware.RequireAuth(tokens, activity))
+	identityroutes.Register(app,
+		identity.NewLoginHandler(authService, tokens),
+		identity.NewUserAdminHandler(identity.NewUserAdminService(identity.NewPostgresRepository(db))),
+		middleware.RequireAuth(tokens, activity),
+	)
 
 	// Start server in a goroutine
 	go func() {
