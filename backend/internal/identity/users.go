@@ -13,12 +13,17 @@ import (
 )
 
 var ErrInvalidUserInput = errors.New("invalid user input")
+var ErrRegistrationClosed = errors.New("initial administrator registration is closed")
+var ErrCannotDeactivateSelf = errors.New("cannot deactivate the current user")
 var userIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 type UserAdminRepository interface {
 	ListUsers(ctx context.Context) ([]ManagedUser, error)
 	CreateUser(ctx context.Context, email, passwordHash, role string) (ManagedUser, error)
 	UpdateUser(ctx context.Context, userID, role string, active bool) (ManagedUser, error)
+	DeactivateUser(ctx context.Context, userID string) (ManagedUser, error)
+	RegistrationEnabled(ctx context.Context) (bool, error)
+	RegisterInitialAdmin(ctx context.Context, email, passwordHash string) (ManagedUser, error)
 }
 
 type UserAdminService struct {
@@ -45,6 +50,39 @@ func (s *UserAdminService) CreateUser(ctx context.Context, principal authn.Princ
 	if err := authn.RequireAnyRole(principal, authn.RoleAdminTI); err != nil {
 		return ManagedUser{}, err
 	}
+	return s.createUser(ctx, email, password, role)
+}
+
+func (s *UserAdminService) RegistrationEnabled(ctx context.Context) (bool, error) {
+	enabled, err := s.repository.RegistrationEnabled(ctx)
+	if err != nil {
+		return false, fmt.Errorf("check initial administrator registration: %w", err)
+	}
+	return enabled, nil
+}
+
+// Register creates the initial administrator only while the user table is empty.
+func (s *UserAdminService) Register(ctx context.Context, email, password string) (ManagedUser, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	parsed, err := mail.ParseAddress(email)
+	if err != nil || parsed.Address != email || len(email) > 254 {
+		return ManagedUser{}, ErrInvalidUserInput
+	}
+	if err := passwords.Validate(password, email); err != nil {
+		return ManagedUser{}, fmt.Errorf("%w: %v", ErrInvalidUserInput, err)
+	}
+	passwordHash, err := passwords.Hash(password)
+	if err != nil {
+		return ManagedUser{}, fmt.Errorf("hash initial administrator password: %w", err)
+	}
+	user, err := s.repository.RegisterInitialAdmin(ctx, email, passwordHash)
+	if err != nil {
+		return ManagedUser{}, fmt.Errorf("register initial administrator: %w", err)
+	}
+	return user, nil
+}
+
+func (s *UserAdminService) createUser(ctx context.Context, email, password, role string) (ManagedUser, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	parsed, err := mail.ParseAddress(email)
 	if err != nil || parsed.Address != email || len(email) > 254 || !authn.IsKnownRole(role) {
@@ -71,9 +109,29 @@ func (s *UserAdminService) UpdateUser(ctx context.Context, principal authn.Princ
 	if !userIDPattern.MatchString(userID) || !authn.IsKnownRole(role) {
 		return ManagedUser{}, ErrInvalidUserInput
 	}
+	if userID == principal.UserID && !active {
+		return ManagedUser{}, ErrCannotDeactivateSelf
+	}
 	user, err := s.repository.UpdateUser(ctx, userID, role, active)
 	if err != nil {
 		return ManagedUser{}, fmt.Errorf("update user: %w", err)
+	}
+	return user, nil
+}
+
+func (s *UserAdminService) DeactivateUser(ctx context.Context, principal authn.Principal, userID string) (ManagedUser, error) {
+	if err := authn.RequireAnyRole(principal, authn.RoleAdminTI); err != nil {
+		return ManagedUser{}, err
+	}
+	if !userIDPattern.MatchString(userID) {
+		return ManagedUser{}, ErrInvalidUserInput
+	}
+	if userID == principal.UserID {
+		return ManagedUser{}, ErrCannotDeactivateSelf
+	}
+	user, err := s.repository.DeactivateUser(ctx, userID)
+	if err != nil {
+		return ManagedUser{}, fmt.Errorf("deactivate user: %w", err)
 	}
 	return user, nil
 }

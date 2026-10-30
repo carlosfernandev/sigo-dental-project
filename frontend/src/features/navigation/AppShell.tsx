@@ -6,6 +6,7 @@ const navigationItems = [
   { to: "/patients", label: "Pacientes", icon: "patients" },
   { to: "/scheduling", label: "Agenda", icon: "calendar" },
   { to: "/billing", label: "Presupuestos", icon: "billing" },
+  { to: "/users", label: "Usuarios", icon: "users" },
 ] as const;
 
 const roleLabels: Record<string, string> = {
@@ -20,6 +21,7 @@ function NavigationIcon({ name }: { name: string }) {
   const paths: Record<string, string> = {
     home: "M3 10.5 12 3l9 7.5M5.5 9v11h13V9M9 20v-6h6v6",
     patients: "M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 8v6m3-3h-6",
+    users: "M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM18 8h5m-2.5-2.5v5",
     calendar: "M8 3v4m8-4v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13H4V6a1 1 0 0 1 1-1Zm3 8h3v3H8z",
     billing: "M5 3h14v18l-2-1-2 1-3-1-3 1-2-1-2 1V3Zm4 5h6m-6 4h6m-6 4h4",
   };
@@ -39,7 +41,7 @@ export function AppShell() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const displayName = user?.email.split("@")[0] || "Usuario";
-  const currentSection = navigationItems.find((item) => item.to === pathname)?.label ?? "Inicio";
+  const currentSection = navigationItems.find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))?.label ?? "Inicio";
 
   return (
     <div className="app-shell">
@@ -51,7 +53,7 @@ export function AppShell() {
 
         <nav className="sidebar-navigation" aria-label="Módulos">
           <p className="sidebar-section-label">Módulos</p>
-          {navigationItems.map((item) => (
+          {navigationItems.filter((item) => item.to !== "/users" || user?.role === "admin_ti").map((item) => (
             <NavLink key={item.to} to={item.to} aria-label={item.label} title={item.label} className={({ isActive }) => `sidebar-link${isActive ? " is-active" : ""}`}>
               <NavigationIcon name={item.icon} />
               <span>{item.label}</span>

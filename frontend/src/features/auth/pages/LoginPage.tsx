@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../app/AuthProvider";
+import { getRegistrationEnabled } from "../../users/api";
 import { loginInputSchema } from "../schemas";
 
 export function LoginPage() {
@@ -10,6 +11,15 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getRegistrationEnabled()
+      .then((enabled) => { if (active) setRegistrationEnabled(enabled); })
+      .catch(() => { if (active) setRegistrationEnabled(false); });
+    return () => { active = false; };
+  }, []);
   const localCredentialValues = import.meta.env.DEV
     ? {
       email: import.meta.env.VITE_LOCAL_LOGIN_EMAIL,
@@ -129,7 +139,7 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="login-footnote">Acceso exclusivo para el personal de la clínica.</p>
+        {registrationEnabled && <p className="login-footnote">¿Aún no tienes cuenta? <Link className="text-link" to="/register">Regístrate</Link></p>}
       </section>
 
     </main>

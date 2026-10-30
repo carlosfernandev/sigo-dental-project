@@ -38,3 +38,8 @@ src/
 
 Las llamadas a la API pertenecen al feature que las consume y usan el cliente compartido. Los
 features no se importan entre sí; el código transversal vive en `shared/`.
+
+## Estándar de Generación de CRUDs (Frontend)
+1. **Listados (`List.jsx`):** Usar siempre una tabla con estado de carga (loader) y manejo de estado vacío (empty state).
+2. **Formularios (`Form.jsx`):** Crear un solo componente reutilizable para Creación y Edición. Recibe `initialData` por props.
+3. **Llamadas a API:** Centralizar las peticiones del CRUD en `src/services/<dominio>Service.js`.

@@ -23,6 +23,66 @@ Usa las convenciones de `rules/GLOSSARY.md`: no inventes sinónimos para entidad
 Para trabajo de interfaz, sigue [`docs/design/PLAN_DISENO_FRONTEND.md`](docs/design/PLAN_DISENO_FRONTEND.md) y las skills
 `dental-ui-*`.
 
+# Reglas de CRUD: SIGO-Dental
+
+Fuente visual única: PLAN_DISENO_FRONTEND.md. Usa solo sus tokens.
+CRUD de referencia: Pacientes. Todo CRUD nuevo copia su estructura.
+Usa siempre los componentes compartidos: DataTable, EntityDrawer,
+ConfirmDialog, FormField, StatusChip. No crees tablas ni formularios propios.
+
+## Listado
+- Cabecera: título del módulo a la izquierda, un único botón primario
+  "Nuevo [entidad]" a la derecha.
+- Búsqueda arriba de la tabla (atajo `/`), filtros máximo 3 visibles; el resto en "Más filtros".
+- Tabla: filas de 48 px, orden por columna, paginación en servidor (25 por página).
+- Cada fila: acción principal al hacer clic; acciones secundarias visibles
+  al hover, al foco o con la fila seleccionada. Todas accesibles con teclado.
+- Estados obligatorios: cargando (skeleton rectangular), vacío (explica qué
+  hacer y ofrece "Nuevo [entidad]"), sin resultados de búsqueda, error
+  (qué pasó y botón "Reintentar").
+
+## Crear y editar
+- Formularios cortos (hasta 8 campos): EntityDrawer de 480 px.
+- Formularios largos o con secciones: página completa con tabs.
+- No usar modal para formularios; el modal es solo para confirmaciones y firmas.
+- Una columna de campos. Etiqueta siempre visible sobre el campo.
+  Campos obligatorios marcados con el texto "(obligatorio)", no solo con asterisco.
+- Validación: al salir del campo y al guardar. El error va bajo el campo,
+  explica cómo corregir y se enlaza con aria-describedby.
+  Al guardar con errores, el foco pasa al primer campo inválido.
+- Botones: "Guardar [entidad]" (primario) y "Cancelar" (secundario),
+  alineados a la izquierda al pie del formulario.
+- Avisar antes de cerrar si hay cambios sin guardar.
+
+## Eliminar
+- Los registros clínicos nunca se borran (RN-01). La acción se llama
+  "Desactivar" o "Anular", pide motivo y queda en auditoría.
+- Solo datos sin valor clínico (catálogos, plantillas) permiten "Eliminar".
+- Toda acción destructiva usa ConfirmDialog con el nombre de la entidad
+  y el verbo exacto en el botón: "Desactivar paciente", no "Aceptar".
+
+## Retroalimentación
+- Toast de 8 s con "Deshacer" cuando aplique; role="status".
+- El verbo del botón se repite en el toast: "Guardar paciente" → "Paciente guardado".
+- Errores de servidor que bloquean: role="alert", no desaparecen solos.
+
+## Permisos y auditoría
+- Cada botón y columna declara qué rol puede verlo (recepción, odontólogo,
+  asistente, administrador). Si no tiene permiso, no se muestra; no se deshabilita sin explicación.
+- Crear, editar y desactivar registran usuario, fecha y valor anterior.
+
+## Estilo
+- Solo tokens del plan. Prohibido: hex, clases de paleta por defecto
+  (emerald, teal, slate, blue), rounded-*, shadow-*, degradados, azul.
+- Estados con color + trama + letra o texto, nunca solo color.
+
+## Antes de entregar, confirma por escrito
+1. Usé DataTable, EntityDrawer y FormField sin variantes propias.
+2. Existen los cuatro estados del listado.
+3. No hay borrado de registros clínicos.
+4. Todo el flujo funciona solo con teclado.
+5. No hay estilos fuera de los tokens.
+
 ## Verificación y comandos
 
 - Usa el Makefile raíz: `make format`, `make lint`, `make test`, `make build`, `make migrate-up` y

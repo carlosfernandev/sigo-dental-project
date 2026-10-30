@@ -41,6 +41,7 @@ type createUserRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	Role     string `json:"role"`
+	RoleID   string `json:"role_id"`
 }
 
 type updateUserRequest struct {
@@ -57,11 +58,38 @@ func (h *UserAdminHandler) CreateUser(c fiber.Ctx) error {
 	if err := decodeUserAdminRequest(c, &request); err != nil {
 		return invalidUserAdminRequest()
 	}
-	user, err := h.service.CreateUser(c.Context(), principal, request.Email, request.Password, request.Role)
+	role := request.RoleID
+	if role == "" {
+		role = request.Role
+	}
+	user, err := h.service.CreateUser(c.Context(), principal, request.Email, request.Password, role)
 	if err != nil {
 		return userAdminError(err)
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
+}
+
+func (h *UserAdminHandler) Register(c fiber.Ctx) error {
+	var request struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := decodeUserAdminRequest(c, &request); err != nil {
+		return invalidUserAdminRequest()
+	}
+	user, err := h.service.Register(c.Context(), request.Email, request.Password)
+	if err != nil {
+		return userAdminError(err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
+}
+
+func (h *UserAdminHandler) RegistrationStatus(c fiber.Ctx) error {
+	enabled, err := h.service.RegistrationEnabled(c.Context())
+	if err != nil {
+		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "No se pudo consultar el estado del registro", err)
+	}
+	return c.JSON(fiber.Map{"data": fiber.Map{"enabled": enabled}})
 }
 
 func (h *UserAdminHandler) UpdateUser(c fiber.Ctx) error {
@@ -78,6 +106,17 @@ func (h *UserAdminHandler) UpdateUser(c fiber.Ctx) error {
 		return userAdminError(err)
 	}
 	return c.JSON(fiber.Map{"data": user})
+}
+
+func (h *UserAdminHandler) DeleteUser(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorizedUserAdmin()
+	}
+	if _, err := h.service.DeactivateUser(c.Context(), principal, c.Params("id")); err != nil {
+		return userAdminError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func decodeUserAdminRequest(c fiber.Ctx, target any) error {
@@ -105,8 +144,12 @@ func userAdminError(err error) error {
 		return invalidUserAdminRequest()
 	case errors.Is(err, ErrEmailAlreadyExists):
 		return httpx.NewError(fiber.StatusConflict, "email_already_exists", "El correo ya está registrado", err)
+	case errors.Is(err, ErrRegistrationClosed):
+		return httpx.NewError(fiber.StatusConflict, "registration_closed", "El registro inicial ya se completó. Solicita una cuenta a un administrador", err)
 	case errors.Is(err, ErrUserNotFound):
 		return httpx.NewError(fiber.StatusNotFound, "user_not_found", "Usuario no encontrado", err)
+	case errors.Is(err, ErrCannotDeactivateSelf):
+		return httpx.NewError(fiber.StatusConflict, "cannot_deactivate_self", "No puedes desactivar tu propia cuenta", err)
 	default:
 		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "Error interno del servidor", err)
 	}

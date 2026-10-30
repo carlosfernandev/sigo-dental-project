@@ -4,10 +4,13 @@ import { useAuth } from "./AuthProvider";
 
 const AppShell = lazy(() => import("../features/navigation/AppShell").then((module) => ({ default: module.AppShell })));
 const LoginPage = lazy(() => import("../features/auth/pages/LoginPage").then((module) => ({ default: module.LoginPage })));
+const PublicRegisterPage = lazy(() => import("../features/users/pages/PublicRegisterPage").then((module) => ({ default: module.PublicRegisterPage })));
 const DashboardPage = lazy(() => import("../features/dashboard/pages/DashboardPage").then((module) => ({ default: module.DashboardPage })));
 const PatientsPage = lazy(() => import("../features/patients/pages/PatientsPage").then((module) => ({ default: module.PatientsPage })));
 const SchedulingPage = lazy(() => import("../features/scheduling/pages/SchedulingPage").then((module) => ({ default: module.SchedulingPage })));
 const BillingPage = lazy(() => import("../features/billing/pages/BillingPage").then((module) => ({ default: module.BillingPage })));
+const RegisterUserPage = lazy(() => import("../features/users/pages/RegisterUserPage").then((module) => ({ default: module.RegisterUserPage })));
+const UsersPage = lazy(() => import("../features/users/pages/UsersPage").then((module) => ({ default: module.UsersPage })));
 
 function PublicLayout() {
   const { user, isLoading } = useAuth();
@@ -22,6 +25,11 @@ function PrivateLayout() {
   if (isLoading) return <SessionLoading />;
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
   return <Outlet />;
+}
+
+function AdminOnlyLayout() {
+  const { user } = useAuth();
+  return user?.role === "admin_ti" ? <Outlet /> : <Navigate to="/dashboard" replace />;
 }
 
 function SessionLoading() {
@@ -52,6 +60,7 @@ export function App() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/login" element={<Suspense fallback={<SessionLoading />}><LoginPage /></Suspense>} />
+        <Route path="/register" element={<Suspense fallback={<SessionLoading />}><PublicRegisterPage /></Suspense>} />
       </Route>
       <Route element={<PrivateLayout />}>
         <Route element={<Suspense fallback={<SessionLoading />}><AppShell /></Suspense>}>
@@ -59,6 +68,11 @@ export function App() {
           <Route path="/patients" element={<Suspense fallback={<SessionLoading />}><PatientsPage /></Suspense>} />
           <Route path="/scheduling" element={<Suspense fallback={<SessionLoading />}><SchedulingPage /></Suspense>} />
           <Route path="/billing" element={<Suspense fallback={<SessionLoading />}><BillingPage /></Suspense>} />
+          <Route element={<AdminOnlyLayout />}>
+            <Route path="/users" element={<Suspense fallback={<SessionLoading />}><UsersPage /></Suspense>} />
+            <Route path="/users/new" element={<Suspense fallback={<SessionLoading />}><RegisterUserPage /></Suspense>} />
+            <Route path="/admin/users" element={<Navigate to="/users" replace />} />
+          </Route>
         </Route>
       </Route>
       <Route path="/" element={<HomeRedirect />} />

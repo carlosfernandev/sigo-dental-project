@@ -9,17 +9,23 @@ type loginHandler interface {
 }
 
 type userAdminHandler interface {
+	Register(c fiber.Ctx) error
+	RegistrationStatus(c fiber.Ctx) error
 	ListUsers(c fiber.Ctx) error
 	CreateUser(c fiber.Ctx) error
 	UpdateUser(c fiber.Ctx) error
+	DeleteUser(c fiber.Ctx) error
 }
 
 // Register mounts identity endpoints on the shared monolith router.
 func Register(router fiber.Router, handler loginHandler, users userAdminHandler, authMiddleware fiber.Handler) {
 	router.Post("/auth/login", handler.Login)
+	router.Post("/auth/register", users.Register)
+	router.Get("/auth/registration-status", users.RegistrationStatus)
 	protected := router.Group("/auth", authMiddleware)
 	protected.Get("/me", handler.Me)
 	router.Get("/users", authMiddleware, users.ListUsers)
 	router.Post("/users", authMiddleware, users.CreateUser)
 	router.Put("/users/:id", authMiddleware, users.UpdateUser)
+	router.Delete("/users/:id", authMiddleware, users.DeleteUser)
 }

@@ -236,7 +236,8 @@ input {
   font-weight: 600;
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   width: 100%;
   min-height: 2.875rem;
   padding: 0.75rem 0.875rem;
@@ -261,7 +262,8 @@ input {
   outline-color: var(--color-ink-900);
 }
 
-.form-field input:disabled {
+.form-field input:disabled,
+.form-field select:disabled {
   background: var(--color-paper);
   cursor: not-allowed;
 }
@@ -304,6 +306,38 @@ input {
   border-radius: 0;
   background: var(--color-danger-50);
   color: var(--color-ink-900);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.register-user-card {
+  display: grid;
+  width: min(100%, 42rem);
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--color-grid-line);
+  background: var(--color-surface);
+}
+
+.register-user-card .button-primary {
+  width: fit-content;
+  min-width: 12rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+}
+
+.form-success {
+  padding: 1rem;
+  border: 1px solid var(--color-primary-700);
+  background: var(--color-primary-50);
+  color: var(--color-ink-900);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.register-role-note {
+  margin: 0;
+  color: var(--color-ink-600);
   font-size: 1rem;
   line-height: 1.5;
 }
@@ -529,6 +563,149 @@ input {
 
 .page-heading {
   margin-bottom: 2rem;
+}
+
+.users-page-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.users-create-button {
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  padding: 0 1rem;
+  text-decoration: none;
+}
+
+.users-notice {
+  margin-bottom: 1.5rem;
+}
+
+.users-table-container {
+  overflow-x: auto;
+  border: 1px solid var(--color-grid-line);
+  background: var(--color-surface);
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.users-table th,
+.users-table td {
+  height: 3rem;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--color-grid-line);
+  font-size: 1rem;
+}
+
+.users-table th {
+  border-bottom: 2px solid var(--color-border-strong);
+  color: var(--color-ink-900);
+  font-weight: 650;
+}
+
+.users-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.users-table-message {
+  height: 4rem !important;
+  color: var(--color-ink-600);
+  text-align: center;
+}
+
+.users-actions-cell {
+  min-width: 16rem;
+}
+
+.users-row-actions,
+.users-confirm-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.users-action-button {
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 2px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-ink-900);
+  font: inherit;
+  cursor: pointer;
+}
+
+.users-action-button:hover:not(:disabled) {
+  background: var(--color-paper);
+}
+
+.users-action-button.is-danger {
+  border-color: var(--color-danger-700);
+  color: var(--color-danger-700);
+}
+
+.users-action-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.users-edit-row td {
+  padding: 1rem;
+  border-bottom: 2px solid var(--color-border-strong);
+  background: var(--color-paper);
+}
+
+.users-edit-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.users-edit-form .form-field {
+  width: min(100%, 22rem);
+}
+
+.users-active-control {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-900);
+  font-size: 1rem;
+}
+
+.users-active-control input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--color-primary-700);
+}
+
+.users-save-button {
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  white-space: nowrap;
+}
+
+.user-status {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-primary-700);
+  background: var(--color-primary-50);
+  color: var(--color-ink-900);
+}
+
+.user-status.is-inactive {
+  border-color: var(--color-danger-700);
+  background: var(--color-danger-50);
 }
 
 .page-heading h1,
@@ -868,6 +1045,11 @@ input {
 
   .module-card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .users-page-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .module-empty-state {
