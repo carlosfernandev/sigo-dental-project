@@ -7,9 +7,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
 	"github.com/carlosfpatino/sigo-dental/platform/migrate"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func TestSeedInitialAdminPostgresIntegration(t *testing.T) {
@@ -54,7 +54,7 @@ func TestSeedInitialAdminPostgresIntegration(t *testing.T) {
 		t.Fatalf("apply identity migrations: %v", err)
 	}
 	repository := NewPostgresRepository(testPool)
-	if err := SeedInitialAdmin(ctx, repository, " ADMIN@Example.com ", "first-temporary-password"); err != nil {
+	if err := SeedInitialAdmin(ctx, repository, " ADMIN@Example.com ", "first-temporary-password-2026"); err != nil {
 		t.Fatalf("seed administrator: %v", err)
 	}
 	if err := SeedInitialAdmin(ctx, repository, "admin@example.com", "replacement-password"); err != nil {
@@ -74,10 +74,10 @@ func TestSeedInitialAdminPostgresIntegration(t *testing.T) {
 	if email != "admin@example.com" || role != "admin_ti" || !active || !mustChange {
 		t.Errorf("seeded administrator = (%q, %q, %v, %v), want normalized active admin_ti requiring password change", email, role, active, mustChange)
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte("first-temporary-password")); err != nil {
-		t.Errorf("stored password hash was replaced or invalid: %v", err)
+	if !passwords.Verify("first-temporary-password-2026", passwordHash) {
+		t.Error("stored password hash was replaced or invalid")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte("replacement-password")); err == nil {
+	if passwords.Verify("replacement-password", passwordHash) {
 		t.Error("repeated seed replaced the existing administrator password")
 	}
 

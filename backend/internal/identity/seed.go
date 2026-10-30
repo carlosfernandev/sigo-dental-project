@@ -6,7 +6,7 @@ import (
 	"net/mail"
 	"strings"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
 )
 
 // AdminSeedRepository stores the initial system administrator without
@@ -22,15 +22,15 @@ func SeedInitialAdmin(ctx context.Context, repository AdminSeedRepository, email
 	if err != nil {
 		return err
 	}
-	if password == "" {
-		return fmt.Errorf("initial administrator password is required")
+	if err := passwords.Validate(password, email); err != nil {
+		return fmt.Errorf("invalid initial administrator password: %w", err)
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hash, err := passwords.Hash(password)
 	if err != nil {
 		return fmt.Errorf("hash initial administrator password: %w", err)
 	}
-	if err := repository.InsertAdminIfAbsent(ctx, email, string(hash)); err != nil {
+	if err := repository.InsertAdminIfAbsent(ctx, email, hash); err != nil {
 		return fmt.Errorf("seed initial administrator: %w", err)
 	}
 	return nil

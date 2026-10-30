@@ -17,8 +17,8 @@
 | Item | Value |
 | --- | --- |
 | **Current milestone** | Backlog 01 — identidad (CI diferido por instrucción del usuario) |
-| **Last completed task** | Backlog 01 `1.1` — roles, users y seed del administrador inicial |
-| **Next pending task** | Backlog 01 `1.2` — política de contraseñas con bcrypt según `AGENTS.md` |
+| **Last completed task** | Backlog 01 `1.2` — política bcrypt, verificación y rehash de contraseñas |
+| **Next pending task** | Backlog 01 `1.3` — login con respuesta genérica y verificación bcrypt |
 | **Blockers** | `0.4` CI queda para el final; las migraciones son forward-only según `AGENTS.md` |
 | **Services in flight** | Monolito — identity foundation |
 

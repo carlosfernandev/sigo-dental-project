@@ -8,9 +8,10 @@
 
 ## Current state (2026-10-29)
 
-**Initial backend foundation exists.** The repository has Go configuration, logging,
-PostgreSQL pool setup, a Fiber API bootstrap, Docker Compose for PostgreSQL and Redis, and
-root development commands. Product domains and frontend behavior are not implemented yet.
+**Backend foundation and identity schema exist.** The repository has Go configuration,
+logging, PostgreSQL pool setup, a Fiber API bootstrap, a forward-only migration runner, the
+identity roles/users schema, and an idempotent first-admin seed. Login, sessions, MFA, RBAC,
+and audit behavior are still pending.
 
 | Path | Content |
 | --- | --- |
@@ -26,18 +27,21 @@ root development commands. Product domains and frontend behavior are not impleme
 | `backend/platform/logging/` | Structured logger setup. |
 | `backend/platform/migrate/` | Forward-only transactional PostgreSQL migration runner and tests. |
 | `backend/internal/identity/` | Identity persistence and first-admin seed use case. |
+| `backend/internal/identity/passwords/` | Password policy, bcrypt hashing, verification, and rehash. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
 | `backend/cmd/migrate/main.go` | `go run ./cmd/migrate up` migration command. |
 | `backend/cmd/seed-admin/main.go` | `make seed-admin` initial SystemAdmin seed command. |
 | `backend/migrations/` | Versioned SQL migrations for the monolith. |
+| `docs/decisiones/0002-password-hashing.md` | Owner-approved bcrypt cost and password policy. |
 | `deploy/docker-compose.yml` | Development PostgreSQL and Redis containers. |
 | `.github/workflows/ci.yml` | GitHub Actions checks, PostgreSQL integration service, vulnerability scan. |
 | `rules/ahorro-tokens.md` | Token discipline. Loaded through `opencode.json`. |
 | `opencode.json` | Registers `rules/ahorro-tokens.md` as instructions. |
 | `.atl/skill-registry.md` | Auto-generated skill index. Do not hand-edit. |
 
-**Not implemented yet:** identity and other domain modules, frontend scaffold, application
-migrations, CI workflows, and production deployment configuration.
+**Not implemented yet:** identity HTTP flows, sessions, MFA, RBAC, audit service, other domain
+modules, frontend scaffold, production deployment configuration, and CI execution. CI workflow
+configuration is present; the user requested running it last.
 
 ## Document precedence
 
@@ -52,34 +56,32 @@ When two documents disagree, the higher one wins:
 
 ## Planned layout (read paths only after they exist)
 
-Created by `F0-B1` through `F0-F1` in the checklist. Rationale in `AGENTS.md` → Architecture.
+The target follows the owner-approved monolith architecture in `AGENTS.md`.
 
 ```text
 backend/
-  platform/                     # shared module: config, logging, errors, tracing, redis
-  services/<name>/              # cmd/api/main.go, internal/{entity,service,repository,handler,dto,events}.go
-  go.work
-migrations/<service>/           # NNN_name.sql, forward-only
+  platform/                     # config, logging, errors, tracing, redis, migrations
+  cmd/api/                      # one server and composition root
+  cmd/migrate/                  # forward-only migration command
+  cmd/seed-admin/               # initial admin seed command
+  internal/identity/            # identity domain module
+  migrations/                   # one versioned SQL directory for the monolith
 frontend/
   src/app/  src/features/  src/shared/
-deploy/                         # docker-compose, one container per service
+deploy/                         # PostgreSQL, Redis, and monolith container
 ```
 
-Service names, in the order the checklist builds them: `gateway`, `identity`, `patient`,
-`scheduling`, `billing`, `clinical`, `inventory`.
-
-## Planned ports (none are live)
+## Ports
 
 | Component | Port |
 | --- | --- |
 | Frontend (Vite) | 5173 |
-| Gateway | 8080 |
-| identity / patient / scheduling / clinical / billing / inventory | 8081–8086 |
+| Monolith API | 8080 |
 | PostgreSQL 16 | 5432 |
 | Redis | 6379 |
 | MinIO (deferred) | 9000 |
 
-## Planned contracts (not implemented)
+## API contracts
 
 - **Response envelope:** `{"data": ...}` on success, `{"error": {"code", "message", "details"}}`
   on failure.

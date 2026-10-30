@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
 )
 
 type seedRepository struct {
@@ -20,7 +20,7 @@ func (r *seedRepository) InsertAdminIfAbsent(_ context.Context, email, passwordH
 
 func TestSeedInitialAdminNormalizesEmailAndHashesPassword(t *testing.T) {
 	repository := &seedRepository{}
-	const password = "temporary-admin-password"
+	const password = "temporary-admin-password-2026"
 	if err := SeedInitialAdmin(context.Background(), repository, " Admin@Example.com ", password); err != nil {
 		t.Fatalf("SeedInitialAdmin() error = %v", err)
 	}
@@ -30,8 +30,8 @@ func TestSeedInitialAdminNormalizesEmailAndHashesPassword(t *testing.T) {
 	if repository.passwordHash == password {
 		t.Fatal("repository received a plaintext password")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(repository.passwordHash), []byte(password)); err != nil {
-		t.Errorf("stored hash does not match the initial password: %v", err)
+	if !passwords.Verify(password, repository.passwordHash) {
+		t.Error("stored hash does not match the initial password")
 	}
 }
 
@@ -44,6 +44,7 @@ func TestSeedInitialAdminRejectsInvalidInput(t *testing.T) {
 		{name: "missing email", email: "", password: "secret"},
 		{name: "invalid email", email: "not-an-email", password: "secret"},
 		{name: "missing password", email: "admin@example.com", password: ""},
+		{name: "email in password", email: "admin@example.com", password: "admin@example.comSecure"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
