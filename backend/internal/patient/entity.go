@@ -45,6 +45,7 @@ func (h MedicalHistory) CriticalAlerts() []string {
 
 type Patient struct {
 	ID                    string
+	Identification        string
 	FirstName             string
 	LastName              string
 	DateOfBirth           time.Time
@@ -61,21 +62,24 @@ type Patient struct {
 }
 
 type PatientSummary struct {
-	ID          string
-	FirstName   string
-	LastName    string
-	DateOfBirth time.Time
-	Phone       string
+	ID             string
+	Identification string
+	FirstName      string
+	LastName       string
+	DateOfBirth    time.Time
+	Phone          string
+	InsurancePlan  string
 }
 
 func Validate(p Patient, now time.Time) error {
 	p.FirstName = strings.TrimSpace(p.FirstName)
 	p.LastName = strings.TrimSpace(p.LastName)
+	p.Identification = strings.TrimSpace(p.Identification)
 	p.Email = strings.TrimSpace(p.Email)
 	p.Phone = strings.TrimSpace(p.Phone)
 	p.EmergencyContactName = strings.TrimSpace(p.EmergencyContactName)
 	p.EmergencyContactPhone = strings.TrimSpace(p.EmergencyContactPhone)
-	if p.FirstName == "" || len(p.FirstName) > 100 || p.LastName == "" || len(p.LastName) > 100 ||
+	if p.FirstName == "" || len(p.FirstName) > 100 || p.LastName == "" || len(p.LastName) > 100 || !validIdentification(p.Identification) ||
 		p.DateOfBirth.IsZero() || p.DateOfBirth.After(now) || p.Phone == "" || len(p.Phone) > 32 ||
 		p.EmergencyContactName == "" || len(p.EmergencyContactName) > 120 ||
 		p.EmergencyContactPhone == "" || len(p.EmergencyContactPhone) > 32 || len(p.Address) > 300 || len(p.InsurancePlan) > 200 {
@@ -105,6 +109,18 @@ func Validate(p Patient, now time.Time) error {
 		return err
 	}
 	return nil
+}
+
+func validIdentification(value string) bool {
+	if len(value) != 10 {
+		return false
+	}
+	for _, digit := range value {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func validateHistory(h MedicalHistory) error {

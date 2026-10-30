@@ -90,6 +90,7 @@ func (s *Service) Update(ctx context.Context, principal authn.Principal, sourceI
 
 func requirePatientAccess(principal authn.Principal) error {
 	return authn.RequireAnyRole(principal,
+		authn.RoleAdminTI,
 		authn.RoleReceptionistCashier,
 		authn.RoleDentist,
 		authn.RoleDentalAssistant,
@@ -99,6 +100,7 @@ func requirePatientAccess(principal authn.Principal) error {
 func normalize(patient Patient) Patient {
 	patient.FirstName = strings.TrimSpace(patient.FirstName)
 	patient.LastName = strings.TrimSpace(patient.LastName)
+	patient.Identification = strings.TrimSpace(patient.Identification)
 	patient.Email = strings.ToLower(strings.TrimSpace(patient.Email))
 	patient.Phone = strings.TrimSpace(patient.Phone)
 	patient.Address = strings.TrimSpace(patient.Address)

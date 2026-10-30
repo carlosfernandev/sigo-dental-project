@@ -54,8 +54,8 @@ func (h *Handler) List(c fiber.Ctx) error {
 	items := make([]patientSummaryResponse, 0, len(patients))
 	for _, patient := range patients {
 		items = append(items, patientSummaryResponse{
-			ID: patient.ID, FirstName: patient.FirstName, LastName: patient.LastName,
-			DateOfBirth: patient.DateOfBirth.Format("2006-01-02"), Phone: patient.Phone,
+			ID: patient.ID, FirstName: patient.FirstName, LastName: patient.LastName, Identification: patient.Identification,
+			DateOfBirth: patient.DateOfBirth.Format("2006-01-02"), Phone: patient.Phone, InsurancePlan: patient.InsurancePlan,
 		})
 	}
 	return c.JSON(fiber.Map{"data": items})

@@ -36,10 +36,10 @@ func (r *PostgresRepository) Create(ctx context.Context, actorID, sourceIP strin
 	args := patientColumns(patient)
 	err = tx.QueryRow(ctx, `
 		INSERT INTO patients (
-			first_name, last_name, date_of_birth, email, phone, address,
+			first_name, last_name, identification, date_of_birth, email, phone, address,
 			emergency_contact_name, emergency_contact_phone,
 			legal_guardian_name, legal_guardian_identification, legal_guardian_phone, insurance_plan
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		RETURNING id::text, created_at, updated_at
 	`, args...).Scan(&patient.ID, &patient.CreatedAt, &patient.UpdatedAt)
 	if err != nil {
@@ -73,7 +73,7 @@ func (r *PostgresRepository) List(ctx context.Context, actorID, sourceIP string)
 	}
 	defer tx.Rollback(ctx)
 	rows, err := tx.Query(ctx, `
-		SELECT id::text, first_name, last_name, date_of_birth, phone
+		SELECT id::text, first_name, last_name, identification, date_of_birth, phone, insurance_plan
 		FROM patients
 		ORDER BY lower(last_name), lower(first_name), id
 	`)
@@ -85,7 +85,7 @@ func (r *PostgresRepository) List(ctx context.Context, actorID, sourceIP string)
 	patients := make([]PatientSummary, 0)
 	for rows.Next() {
 		var patient PatientSummary
-		if err := rows.Scan(&patient.ID, &patient.FirstName, &patient.LastName, &patient.DateOfBirth, &patient.Phone); err != nil {
+		if err := rows.Scan(&patient.ID, &patient.FirstName, &patient.LastName, &patient.Identification, &patient.DateOfBirth, &patient.Phone, &patient.InsurancePlan); err != nil {
 			return nil, fmt.Errorf("scan patient summary: %w", err)
 		}
 		patients = append(patients, patient)
@@ -146,11 +146,11 @@ func (r *PostgresRepository) Update(ctx context.Context, actorID, sourceIP strin
 	args = append(args, patient.ID)
 	tag, err := tx.Exec(ctx, `
 		UPDATE patients SET
-			first_name=$1, last_name=$2, date_of_birth=$3, email=$4, phone=$5, address=$6,
-			emergency_contact_name=$7, emergency_contact_phone=$8,
-			legal_guardian_name=$9, legal_guardian_identification=$10, legal_guardian_phone=$11,
-			insurance_plan=$12, updated_at=now()
-		WHERE id=$13::uuid
+			first_name=$1, last_name=$2, identification=$3, date_of_birth=$4, email=$5, phone=$6, address=$7,
+			emergency_contact_name=$8, emergency_contact_phone=$9,
+			legal_guardian_name=$10, legal_guardian_identification=$11, legal_guardian_phone=$12,
+			insurance_plan=$13, updated_at=now()
+		WHERE id=$14::uuid
 	`, args...)
 	if err != nil {
 		return Patient{}, fmt.Errorf("update patient: %w", err)
@@ -189,7 +189,7 @@ func (r *PostgresRepository) Update(ctx context.Context, actorID, sourceIP strin
 }
 
 const patientQuery = `
-	SELECT p.id::text, p.first_name, p.last_name, p.date_of_birth, p.email, p.phone, p.address,
+	SELECT p.id::text, p.first_name, p.last_name, p.identification, p.date_of_birth, p.email, p.phone, p.address,
 	       p.emergency_contact_name, p.emergency_contact_phone, p.legal_guardian_name,
 	       p.legal_guardian_identification, p.legal_guardian_phone, p.insurance_plan,
 	       p.created_at, p.updated_at, mh.systemic_diseases, mh.allergies,
@@ -207,7 +207,7 @@ func scanPatient(row rowScanner) (Patient, error) {
 	var guardianName, guardianID, guardianPhone *string
 	var systemicDiseases, allergies, surgicalHistory, coagulopathies []byte
 	if err := row.Scan(
-		&patient.ID, &patient.FirstName, &patient.LastName, &patient.DateOfBirth, &patient.Email, &patient.Phone,
+		&patient.ID, &patient.FirstName, &patient.LastName, &patient.Identification, &patient.DateOfBirth, &patient.Email, &patient.Phone,
 		&patient.Address, &patient.EmergencyContactName, &patient.EmergencyContactPhone,
 		&guardianName, &guardianID, &guardianPhone, &patient.InsurancePlan, &patient.CreatedAt, &patient.UpdatedAt,
 		&systemicDiseases, &allergies, &surgicalHistory, &coagulopathies,
@@ -240,7 +240,7 @@ func patientColumns(patient Patient) []any {
 		guardianPhone = patient.LegalGuardian.Phone
 	}
 	return []any{
-		patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email, patient.Phone,
+		patient.FirstName, patient.LastName, patient.Identification, patient.DateOfBirth, patient.Email, patient.Phone,
 		patient.Address, patient.EmergencyContactName, patient.EmergencyContactPhone,
 		guardianName, guardianID, guardianPhone, patient.InsurancePlan,
 	}

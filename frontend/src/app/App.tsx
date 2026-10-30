@@ -7,6 +7,7 @@ const LoginPage = lazy(() => import("../features/auth/pages/LoginPage").then((mo
 const PublicRegisterPage = lazy(() => import("../features/users/pages/PublicRegisterPage").then((module) => ({ default: module.PublicRegisterPage })));
 const DashboardPage = lazy(() => import("../features/dashboard/pages/DashboardPage").then((module) => ({ default: module.DashboardPage })));
 const PatientsPage = lazy(() => import("../features/patients/pages/PatientsPage").then((module) => ({ default: module.PatientsPage })));
+const PatientDetailPage = lazy(() => import("../features/patients/pages/PatientDetailPage").then((module) => ({ default: module.PatientDetailPage })));
 const SchedulingPage = lazy(() => import("../features/scheduling/pages/SchedulingPage").then((module) => ({ default: module.SchedulingPage })));
 const BillingPage = lazy(() => import("../features/billing/pages/BillingPage").then((module) => ({ default: module.BillingPage })));
 const UsersPage = lazy(() => import("../features/users/pages/UsersPage").then((module) => ({ default: module.UsersPage })));
@@ -65,6 +66,8 @@ export function App() {
         <Route element={<Suspense fallback={<SessionLoading />}><AppShell /></Suspense>}>
           <Route path="/dashboard" element={<Suspense fallback={<SessionLoading />}><DashboardPage /></Suspense>} />
           <Route path="/patients" element={<Suspense fallback={<SessionLoading />}><PatientsPage /></Suspense>} />
+          <Route path="/patients/new" element={<Suspense fallback={<SessionLoading />}><PatientsPage /></Suspense>} />
+          <Route path="/patients/:id" element={<Suspense fallback={<SessionLoading />}><PatientDetailPage /></Suspense>} />
           <Route path="/scheduling" element={<Suspense fallback={<SessionLoading />}><SchedulingPage /></Suspense>} />
           <Route path="/billing" element={<Suspense fallback={<SessionLoading />}><BillingPage /></Suspense>} />
           <Route element={<AdminOnlyLayout />}>

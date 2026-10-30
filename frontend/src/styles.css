@@ -237,7 +237,8 @@ input {
 }
 
 .form-field input,
-.form-field select {
+.form-field select,
+.form-field textarea {
   width: 100%;
   min-height: 2.875rem;
   padding: 0.75rem 0.875rem;
@@ -247,6 +248,8 @@ input {
   color: var(--color-ink-900);
   font-size: 1.125rem;
 }
+
+.form-field textarea { resize: vertical; }
 
 .form-field input::placeholder {
   color: var(--color-ink-600);
@@ -797,9 +800,15 @@ input {
 .required-label { font-weight: 400; }
 
 .confirm-dialog {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
   width: min(34rem, calc(100vw - 2rem));
   max-width: none;
+  max-height: calc(100dvh - 2rem);
+  margin: 0;
   padding: 0;
+  overflow-y: auto;
   border: 2px solid var(--color-ink-900);
   border-radius: 0;
   background: var(--color-surface);
@@ -1204,6 +1213,40 @@ input {
   .module-empty-state {
     padding: 1.25rem;
   }
+}
+
+.patients-page { display: grid; gap: 1.25rem; }
+.patients-lead { margin: 0.5rem 0 0; color: var(--color-ink-600); }
+.patients-back-link { width: fit-content; color: var(--color-primary-700); font-weight: 650; }
+.patient-form { display: grid; gap: 1.5rem; }
+.patient-form-section { min-width: 0; margin: 0; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: 0.75rem; }
+.patient-form-section legend { padding: 0 0.35rem; color: var(--color-ink-900); font-size: 1.2rem; font-weight: 700; }
+.patient-form-section h3 { margin: 1.5rem 0 1rem; font-size: 1.05rem; }
+.patient-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.patient-form-wide { grid-column: 1 / -1; }
+.patient-form-note { margin: 0 0 1rem; color: var(--color-ink-600); }
+.patient-form-guardian { margin-top: 1.25rem; }
+.patient-critical-toggle { display: flex; align-items: center; gap: 0.6rem; min-height: 2.875rem; color: var(--color-danger-700); font-weight: 650; }
+.patient-critical-toggle input { width: 1.2rem; height: 1.2rem; }
+.patient-form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; position: sticky; bottom: -1rem; padding: 1rem 0; background: var(--color-surface); }
+.patient-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.patient-detail-card { padding: 1.5rem; border: 1px solid var(--color-border); border-radius: 0.75rem; background: var(--color-surface); }
+.patient-detail-card h2 { margin: 0 0 1.25rem; font-size: 1.25rem; }
+.patient-detail-card dl { display: grid; gap: 1rem; margin: 0; }
+.patient-detail-card dl > div { display: grid; gap: 0.3rem; }
+.patient-detail-card dt { color: var(--color-ink-600); font-size: 0.9rem; font-weight: 650; }
+.patient-detail-card dd { margin: 0; overflow-wrap: anywhere; }
+.patient-medical-list { padding: 0.85rem 0; border-top: 1px solid var(--color-border); }
+.patient-medical-list h3 { margin: 0 0 0.45rem; font-size: 1rem; }
+.patient-medical-list ul, .patient-critical-banner ul { display: grid; gap: 0.35rem; margin: 0; padding-left: 1.25rem; }
+.patient-medical-list p { margin: 0; color: var(--color-ink-600); }
+.patient-critical-banner { padding: 1rem 1.25rem; border-left: 0.35rem solid var(--color-danger-700); background: var(--color-danger-50); color: var(--color-danger-900); }
+.patient-critical-banner h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.patient-critical-banner li { font-weight: 700; }
+@media (max-width: 720px) {
+  .patient-form-grid, .patient-detail-grid { grid-template-columns: 1fr; }
+  .patient-form-wide { grid-column: auto; }
+  .patient-form-actions { flex-direction: column-reverse; }
 }
 
 @media (prefers-reduced-motion: reduce) {
