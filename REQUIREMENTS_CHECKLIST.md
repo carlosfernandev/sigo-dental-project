@@ -13,6 +13,17 @@
 | **Siguiente requisito** | RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
+| **Alcance** | MVP completo del SRS v1.3, sin integraciones externas (ver Alcance MVP) |
+
+## Alcance MVP (SRS v1.3, sección 2.4)
+
+El MVP cubre todos los RF, RN y RNF del SRS y funciona sin servicios de terceros.
+
+- Sin llamadas a APIs externas: mensajería, pasarelas de pago, autoridad tributaria, PACS/DICOM.
+- Pagos con tarjeta, transferencia y seguro: se registran con referencia, sin procesar la transacción.
+- Firmas (RF-05, RF-06, RN-01): internas, con reautenticación, sello de integridad, usuario y fecha-hora. Sin certificado de entidad certificadora.
+- Todo punto externo es un puerto con implementación interna; no escribir clientes HTTP de terceros.
+- Criterio de aceptación (SRS 8.3): el sistema completo opera sin acceso a internet.
 
 ## Base técnica
 
@@ -49,14 +60,17 @@
 - [x] RF-09: calendario por recinto, sillón y profesional.
 - [x] RF-10: estados de cita definidos en el SRS.
 - [x] RN-03: impedir citas superpuestas en el mismo sillón, también bajo concurrencia.
-- [ ] RF-11: confirmaciones y recordatorios 48 h y 24 h por los canales definidos en el SRS.
+- [ ] RF-11: recordatorios 48 h y 24 h generados por el sistema en una cola interna de recepción
+      (estados pendiente/contactado/sin respuesta, con quién y cuándo); puerto de notificación sin
+      proveedor externo.
 
 ### Presupuestos, facturación y portal
 
 - [x] RF-07: presupuestos por fases/sesiones, con honorarios, laboratorio y descuentos autorizados.
 - [ ] RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables.
 - [ ] RF-12: crear y emitir facturas dentro del sistema y registrar pagos mixtos; sin conexión
-      tributaria externa.
+      tributaria externa ni pasarela de pagos (tarjeta, transferencia y seguro se registran con
+      referencia).
 - [ ] RN-02: en el cierre de caja, ocultar el total teórico hasta recibir el conteo físico.
 - [ ] Portal web responsive para los flujos de esta fase (RNF-07 y RNF-08).
 
@@ -64,9 +78,10 @@
 
 - [ ] RF-03: odontograma interactivo con dentición, notación, superficies y catálogo del SRS.
 - [ ] RF-04: periodontograma con mediciones y cálculo del nivel de inserción clínica.
-- [ ] RF-05: notas SOEP cronológicas, inmutables, con firma profesional y bloqueo tras el plazo
-      configurable indicado por el SRS.
-- [ ] RF-06: consentimiento informado por procedimiento con firma o validación OTP.
+- [ ] RF-05: notas SOEP cronológicas, inmutables, con firma profesional interna (reautenticación y
+      sello de integridad) y bloqueo tras el plazo configurable indicado por el SRS.
+- [ ] RF-06: consentimiento informado por procedimiento con firma en pantalla táctil; OTP fuera del
+      MVP (requiere mensajería externa).
 - [ ] Recetas odontológicas, según el objetivo y la descripción de esta fase en el SRS.
 - [ ] RN-01: ningún procedimiento realizado se elimina; las correcciones son adendas.
 - [ ] RNF-05: conectar RBAC en los casos de uso clínicos y conservar el timeout de 15 minutos.
@@ -86,11 +101,16 @@
 - [ ] Documentación API OpenAPI 3.0 (SRS 8.2).
 - [ ] Verificar RNF-01 a RNF-08: rendimiento, disponibilidad, concurrencia, cifrado, seguridad,
       responsive y navegadores.
+- [ ] Verificar el criterio MVP (SRS 8.3): el sistema completo opera sin acceso a internet.
 - [ ] Salida a producción y monitoreo.
 
 ## Diferimientos decididos
 
 - Integración tributaria externa: fuera del alcance; la factura se crea y emite dentro del sistema.
+- Mensajería externa (WhatsApp Business, SMS, Email): fuera del MVP; recordatorios en cola interna.
+- Pasarelas de pago: fuera del MVP; los pagos se registran con referencia.
+- Firma con certificado de entidad certificadora y validación OTP: fuera del MVP.
+- PACS/DICOM: fuera del MVP; archivos planos cuando se implemente el almacenamiento.
 - MinIO y carga de documentos: diferidos hasta que documentos clínicos estén en alcance.
 - App móvil nativa y procesamiento DICOM: fuera de Fase 1 según SRS 2.3.
 - Fórmula concreta RF-13: pendiente de decisión.
