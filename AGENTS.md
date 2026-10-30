@@ -263,6 +263,9 @@ naming any table, struct, endpoint, or component. Do not invent synonyms: it is 
 - English for code, comments, identifiers, and commit messages; Spanish only for the SRS and
   end-user clinic copy.
 - `.atl/` is auto-generated (`gentle-ai skill-registry refresh --force`). Do not hand-edit.
+- `opencode.json` and `.gentle-ai-default-agent.json` are generated per machine by
+  `gentle-ai sync` and are **not** tracked. Each developer runs their own sync.
+- Token discipline lives in `rules/ahorro-tokens.md`; read it before browsing, memory, or test work.
 
 ## Do not run `codegraph init` yet
 
