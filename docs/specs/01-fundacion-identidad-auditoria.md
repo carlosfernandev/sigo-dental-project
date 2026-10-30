@@ -13,8 +13,9 @@ siguen definiendo cómo se implementa.
 - Redis solo para caché; MinIO queda diferido según `AGENTS.md`.
 - Ecuador y LOPDP como jurisdicción aplicable. No se declara cumplimiento HIPAA.
 
-El JWT actual expira en dos horas. Eso **no cumple** el cierre por 15 minutos de inactividad
-de RNF-05. El timeout debe quedar implementado antes de permitir acceso a información clínica.
+El JWT vence en dos horas y el middleware además cierra el acceso tras 15 minutos sin actividad.
+El seguimiento es en memoria para el monolito de un solo proceso; al reiniciar, la inactividad del
+primer acceso se calcula desde `iat`.
 
 ## Identidad y seguridad requeridas por el SRS
 
@@ -22,10 +23,11 @@ Roles del SRS: `admin_ti`, `recepcionista_cajero`, `odontologo`, `asistente_dent
 `auditor_contador`.
 
 - `POST /auth/login` y middleware JWT Bearer: implementados.
-- Autorización RBAC según los permisos descritos para cada rol: pendiente.
+- Helper `authn.RequireAnyRole` disponible; conectar los permisos RBAC definidos por el SRS a cada
+  caso de uso conforme se implementen los endpoints de dominio.
 - Gestión de usuarios por `admin_ti`, limitada a lo que implica ese perfil en la sección 3 del SRS:
   pendiente.
-- Cierre tras 15 minutos de inactividad en estaciones clínicas: pendiente.
+- Cierre tras 15 minutos de inactividad en estaciones clínicas: implementado por el middleware.
 - Auditoría inmutable de cada CRUD clínico con actor, timestamp ISO-8601 e IP: pendiente para
   Fase 2, cuando existan operaciones clínicas.
 
@@ -91,5 +93,5 @@ Según SRS 8.1 y 8.2:
 - Base Go/Fiber, configuración, migraciones, PostgreSQL, Redis de caché y `/health` inicial: en el
   repositorio.
 - Login JWT y `RequireAuth`: implementados.
-- RBAC y timeout por inactividad: pendientes; no se debe exponer información clínica antes de
-  cubrir los controles exigidos por RNF-05.
+- Timeout de 15 minutos implementado. El RBAC debe aplicarse dentro de cada servicio de dominio;
+  no exponer información clínica hasta conectar allí los permisos del SRS.

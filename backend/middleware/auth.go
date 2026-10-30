@@ -15,7 +15,7 @@ type Principal = authn.Principal
 
 // RequireAuth validates a Bearer JWT and stores its subject and role in Fiber's
 // request context. Authorization decisions remain in owning domain services.
-func RequireAuth(tokens *authn.TokenManager) fiber.Handler {
+func RequireAuth(tokens *authn.TokenManager, activity *authn.ActivityTracker) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		scheme, raw, ok := getReqBearerAuthToken(c)
 		if !ok || !strings.EqualFold(scheme, "Bearer") {
@@ -23,6 +23,9 @@ func RequireAuth(tokens *authn.TokenManager) fiber.Handler {
 		}
 		principal, err := tokens.Validate(raw)
 		if err != nil {
+			return unauthorized()
+		}
+		if err := activity.Touch(principal.TokenID, principal.IssuedAt); err != nil {
 			return unauthorized()
 		}
 		c.Locals(principalContextKey, principal)

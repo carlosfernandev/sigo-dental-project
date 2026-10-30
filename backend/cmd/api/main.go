@@ -56,6 +56,7 @@ func main() {
 		logger.Error("invalid token configuration", "error", err)
 		os.Exit(1)
 	}
+	activity := authn.NewActivityTracker()
 
 	// Initialize Redis (cache). If it fails, the API continues without cache.
 	redisClient := config.InitRedis(ctx, cfg.Redis, logger)
@@ -67,7 +68,7 @@ func main() {
 	// ctrls := controllers.NewControllers(repo, cacheRepo, db, redisClient)
 
 	app := newApp(logger)
-	identityroutes.Register(app, identity.NewLoginHandler(authService, tokens), middleware.RequireAuth(tokens))
+	identityroutes.Register(app, identity.NewLoginHandler(authService, tokens), middleware.RequireAuth(tokens, activity))
 
 	// Start server in a goroutine
 	go func() {

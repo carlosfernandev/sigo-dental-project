@@ -2,6 +2,8 @@
 package authn
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -12,10 +14,13 @@ import (
 const AccessTokenTTL = 2 * time.Hour
 
 var ErrInvalidToken = errors.New("invalid token")
+var ErrForbidden = errors.New("forbidden")
 
 type Principal struct {
-	UserID string
-	Role   string
+	UserID   string
+	Role     string
+	TokenID  string
+	IssuedAt time.Time
 }
 
 type claims struct {
@@ -39,12 +44,17 @@ func NewTokenManager(secret []byte, ttl time.Duration) (*TokenManager, error) {
 }
 
 func (m *TokenManager) Issue(userID, role string) (string, time.Time, error) {
+	var randomID [16]byte
+	if _, err := rand.Read(randomID[:]); err != nil {
+		return "", time.Time{}, fmt.Errorf("generate token id: %w", err)
+	}
 	now := time.Now().UTC()
 	expiresAt := now.Add(m.ttl)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
 		Role: role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
+			ID:        base64.RawURLEncoding.EncodeToString(randomID[:]),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 		},
@@ -67,8 +77,21 @@ func (m *TokenManager) Validate(raw string) (Principal, error) {
 		}
 		return m.secret, nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired(), jwt.WithIssuedAt())
-	if err != nil || token == nil || !token.Valid || parsedClaims.Subject == "" || parsedClaims.Role == "" || parsedClaims.IssuedAt == nil {
+	if err != nil || token == nil || !token.Valid || parsedClaims.Subject == "" || parsedClaims.Role == "" || parsedClaims.ID == "" || parsedClaims.IssuedAt == nil {
 		return Principal{}, ErrInvalidToken
 	}
-	return Principal{UserID: parsedClaims.Subject, Role: parsedClaims.Role}, nil
+	return Principal{
+		UserID: parsedClaims.Subject, Role: parsedClaims.Role,
+		TokenID: parsedClaims.ID, IssuedAt: parsedClaims.IssuedAt.Time,
+	}, nil
+}
+
+// RequireAnyRole is called by domain service use cases before they act on a request.
+func RequireAnyRole(principal Principal, roles ...string) error {
+	for _, role := range roles {
+		if principal.Role == role {
+			return nil
+		}
+	}
+	return ErrForbidden
 }

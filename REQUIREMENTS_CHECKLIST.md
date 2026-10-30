@@ -9,8 +9,8 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | Base backend, usuarios/roles, login JWT y middleware `RequireAuth` |
-| **Siguiente requisito** | RNF-05: RBAC e inactividad antes de habilitar acceso clínico |
+| **Último trabajo completado** | RNF-05: timeout de inactividad de 15 minutos; helper de autorización por rol |
+| **Siguiente requisito** | RNF-05: aplicar permisos RBAC en cada caso de uso de dominio al implementar sus endpoints |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
 
@@ -33,8 +33,10 @@
 - [x] `middleware.RequireAuth` valida el Bearer token y expone usuario/rol.
 - [ ] RNF-05: aplicar RBAC de mínimo privilegio basado en los cinco perfiles del SRS.
 - [ ] `admin_ti` puede gestionar usuarios, como indica la descripción de su rol en el SRS.
-- [ ] RNF-05: cerrar acceso tras 15 minutos de inactividad en estaciones clínicas. El JWT actual de
-      dos horas no cumple este requisito.
+- [x] RNF-05: cerrar acceso tras 15 minutos de inactividad; el middleware rechaza las solicitudes
+      autenticadas y requiere volver a iniciar sesión. El seguimiento vive en memoria del monolito.
+- [ ] RNF-05: aplicar permisos RBAC de mínimo privilegio en cada caso de uso de dominio al crear
+      sus endpoints; existe `authn.RequireAnyRole` como helper.
 
 ### Pacientes y catálogo médico
 
@@ -67,7 +69,7 @@
 - [ ] RF-06: consentimiento informado por procedimiento con firma o validación OTP.
 - [ ] Recetas odontológicas, según el objetivo y la descripción de esta fase en el SRS.
 - [ ] RN-01: ningún procedimiento realizado se elimina; las correcciones son adendas.
-- [ ] RNF-05: proteger el acceso clínico con RBAC e inactividad de 15 minutos.
+- [ ] RNF-05: conectar RBAC en los casos de uso clínicos y conservar el timeout de 15 minutos.
 - [ ] RNF-06: auditar cada CRUD clínico con actor, timestamp ISO-8601 e IP; el registro es inmutable.
 
 ## Fase 3 — Finanzas avanzadas, inventarios y reportes

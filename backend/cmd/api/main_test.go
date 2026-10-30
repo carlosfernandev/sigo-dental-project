@@ -74,7 +74,7 @@ func registerLogin(app *fiber.App, repository *fakeAuthRepository, dummyHash str
 	}
 	identityroutes.Register(app,
 		identity.NewLoginHandler(identity.NewAuthService(repository, dummyHash), tokens),
-		middleware.RequireAuth(tokens))
+		middleware.RequireAuth(tokens, authn.NewActivityTracker()))
 	return tokens
 }
 

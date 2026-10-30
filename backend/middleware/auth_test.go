@@ -21,7 +21,7 @@ func TestRequireAuthAddsPrincipal(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := testApp()
-	app.Get("/protected", RequireAuth(tokens), func(c fiber.Ctx) error {
+	app.Get("/protected", RequireAuth(tokens, authn.NewActivityTracker()), func(c fiber.Ctx) error {
 		principal, ok := PrincipalFromContext(c)
 		if !ok || principal.UserID != "user-1" || principal.Role != "odontologo" {
 			t.Fatalf("principal = %+v, %v", principal, ok)
@@ -46,7 +46,7 @@ func TestRequireAuthRejectsMissingAndMalformedBearerTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := testApp()
-	app.Get("/protected", RequireAuth(tokens), func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
+	app.Get("/protected", RequireAuth(tokens, authn.NewActivityTracker()), func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
 	for _, authorization := range []string{"", "Basic abc", "Bearer", "Bearer not-a-jwt"} {
 		req := httptest.NewRequest("GET", "/protected", nil)
 		if authorization != "" {
