@@ -6,5 +6,5 @@ type Auth struct {
 }
 
 func loadAuth(l *loader) Auth {
-	return Auth{JWTSecret: []byte(l.optional("SIGO_JWT_SECRET_LARGE_KEY_WITH_MORE_THAN_32_BYTES"))}
+	return Auth{JWTSecret: []byte(l.required("SIGO_JWT_SECRET"))}
 }

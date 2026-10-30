@@ -9,13 +9,16 @@ import (
 	"github.com/carlosfpatino/sigo-dental/platform/config"
 )
 
+// testJWTSecret is long enough to pass token manager validation (32 bytes).
+const testJWTSecret = "test-only-secret-with-more-than-32-bytes"
+
 // baseline is a complete, valid environment. Each case overrides one key so a
 // failure points at that key and not at a missing neighbour.
 func baseline() map[string]string {
 	return map[string]string{
 		"SIGO_ENV":            "",
 		"SIGO_LOG_LEVEL":      "",
-		"SIGO_JWT_SECRET":     "test-only-secret-with-more-than-32-bytes",
+		"SIGO_JWT_SECRET":     testJWTSecret,
 		"SIGO_PG_HOST":        "localhost",
 		"SIGO_PG_PORT":        "",
 		"SIGO_PG_USER":        "sigo",
@@ -94,6 +97,11 @@ func TestLoad(t *testing.T) {
 			wantErr: "SIGO_PG_SSLMODE cannot be disable",
 		},
 		{
+			name:    "missing JWT secret",
+			env:     map[string]string{"SIGO_JWT_SECRET": ""},
+			wantErr: "SIGO_JWT_SECRET is required",
+		},
+		{
 			name:    "unknown log level",
 			env:     map[string]string{"SIGO_LOG_LEVEL": "verbose"},
 			wantErr: "SIGO_LOG_LEVEL must be one of",
@@ -127,6 +135,9 @@ func TestLoad(t *testing.T) {
 			}
 			if cfg.LogLevel != slog.LevelInfo {
 				t.Errorf("default LogLevel = %v, want info", cfg.LogLevel)
+			}
+			if got := string(cfg.Auth.JWTSecret); got != testJWTSecret {
+				t.Errorf("JWTSecret = %q, want %q", got, testJWTSecret)
 			}
 			if cfg.Redis.Host != "127.0.0.1" || cfg.Redis.Port != 6379 || cfg.Redis.Database != 0 {
 				t.Errorf("Redis defaults = %+v, want host 127.0.0.1, port 6379, database 0", cfg.Redis)

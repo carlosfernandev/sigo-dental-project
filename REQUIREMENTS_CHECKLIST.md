@@ -9,8 +9,8 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | `/health` verifica PostgreSQL y reporta Redis degradado; identidad protegida por RBAC |
-| **Siguiente requisito** | RF-01: comenzar ficha de paciente con acceso por rol definido por el SRS |
+| **Último trabajo completado** | RF-07: catálogo de procedimientos médicos y presupuestos por fases/sesiones |
+| **Siguiente requisito** | RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
 
@@ -40,20 +40,20 @@
 
 ### Pacientes y catálogo médico
 
-- [ ] RF-01: ficha, datos de contacto, emergencia, tutor legal para menores y seguro/convenio.
-- [ ] RF-02: historial médico obligatorio y alertas críticas en la cabecera del expediente.
+- [x] RF-01: ficha, datos de contacto, emergencia, tutor legal para menores y seguro/convenio.
+- [x] RF-02: historial médico obligatorio y alertas críticas en la cabecera del expediente.
 - [ ] Catálogo médico requerido por la descripción de Fase 1 del SRS.
 
 ### Agenda y turnos
 
-- [ ] RF-09: calendario por recinto, sillón y profesional.
-- [ ] RF-10: estados de cita definidos en el SRS.
-- [ ] RN-03: impedir citas superpuestas en el mismo sillón, también bajo concurrencia.
+- [x] RF-09: calendario por recinto, sillón y profesional.
+- [x] RF-10: estados de cita definidos en el SRS.
+- [x] RN-03: impedir citas superpuestas en el mismo sillón, también bajo concurrencia.
 - [ ] RF-11: confirmaciones y recordatorios 48 h y 24 h por los canales definidos en el SRS.
 
 ### Presupuestos, facturación y portal
 
-- [ ] RF-07: presupuestos por fases/sesiones, con honorarios, laboratorio y descuentos autorizados.
+- [x] RF-07: presupuestos por fases/sesiones, con honorarios, laboratorio y descuentos autorizados.
 - [ ] RF-08: aprobación total/parcial y transición de ítems aprobados a tareas agendables.
 - [ ] RF-12: crear y emitir facturas dentro del sistema y registrar pagos mixtos; sin conexión
       tributaria externa.

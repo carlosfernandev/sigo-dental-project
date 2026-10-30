@@ -8,11 +8,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/carlosfpatino/sigo-dental/internal/billing"
+	billingroutes "github.com/carlosfpatino/sigo-dental/internal/billing/routes"
 	"github.com/carlosfpatino/sigo-dental/internal/identity"
 	"github.com/carlosfpatino/sigo-dental/internal/identity/passwords"
 	identityroutes "github.com/carlosfpatino/sigo-dental/internal/identity/routes"
 	"github.com/carlosfpatino/sigo-dental/internal/patient"
 	patientroutes "github.com/carlosfpatino/sigo-dental/internal/patient/routes"
+	"github.com/carlosfpatino/sigo-dental/internal/scheduling"
+	schedulingroutes "github.com/carlosfpatino/sigo-dental/internal/scheduling/routes"
 	"github.com/carlosfpatino/sigo-dental/middleware"
 	"github.com/carlosfpatino/sigo-dental/platform/authn"
 	"github.com/carlosfpatino/sigo-dental/platform/config"
@@ -79,6 +83,14 @@ func main() {
 	)
 	patientroutes.Register(app,
 		patient.NewHandler(patient.NewService(patient.NewPostgresRepository(db))),
+		middleware.RequireAuth(tokens, activity),
+	)
+	schedulingroutes.Register(app,
+		scheduling.NewHandler(scheduling.NewService(scheduling.NewPostgresRepository(db))),
+		middleware.RequireAuth(tokens, activity),
+	)
+	billingroutes.Register(app,
+		billing.NewHandler(billing.NewService(billing.NewPostgresRepository(db))),
 		middleware.RequireAuth(tokens, activity),
 	)
 

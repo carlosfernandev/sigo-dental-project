@@ -268,3 +268,7 @@ naming any table, struct, endpoint, or component. Do not invent synonyms: it is 
 
 Global instructions say to initialize CodeGraph when `.codegraph/` is missing. That rule assumes
 an existing project; this repo has no code to index. Revisit after the first real source tree.
+
+## Diseño frontend
+
+Para cualquier trabajo de interfaz, sigue docs/diseno/PLAN_DISENO_FRONTEND.md y usa las skills dental-ui-*
