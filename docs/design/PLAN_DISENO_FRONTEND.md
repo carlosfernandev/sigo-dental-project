@@ -34,15 +34,28 @@ Ajustes respecto a la referencia:
 ## 3. Distribución
 
 ```
-┌──────────┬──────────────────────────────────┬───────────┐
-│ Contexto │  Zona de trabajo (tabs + lienzo) │ Panel de  │
-│ paciente │                                  │ contexto  │
-│ + menú   │                                  │ (opcional)│
-│ 240 px   │            flexible              │  320 px   │
-└──────────┴──────────────────────────────────┴───────────┘
+┌────────────────────┬──────────────────────────────────────────────┐
+│ Sidebar (20%)      │ Navbar superior (80%)                       │
+│                    ├──────────────────────────────────────────────┤
+│ Menú               │                                              │
+│                    │ Zona de trabajo (80%):                       │
+│                    │ dashboard y pantallas de gestión             │
+│                    │                                              │
+│                    │                                              │
+├────────────────────┤                                              │
+│ Perfil             │                                              │
+│ Nombre de usuario  │                                              │
+│ Rol                │                                              │
+└────────────────────┴──────────────────────────────────────────────┘
 ```
 
-- **Escritorio (1920 y 1366):** tres zonas visibles; el panel derecho es colapsable.
+- Proporción: La distribución usa un sidebar del 20% del ancho y una zona de trabajo del 80%.
+
+- Navbar: La navbar superior ocupa el ancho de la zona de trabajo; el contenido de cada pantalla queda debajo y puede desplazarse sin mover la navegación.
+
+- Sidebar: El sidebar ocupa la altura disponible y su perfil permanece en un contenedor anclado al fondo, con nombre de usuario y rol.
+
+- **Escritorio (1920 y 1366):** sidebar 20% y zona de trabajo 80%; el contexto o panel derecho, cuando aplique, vive dentro de la zona de trabajo y es colapsable.
 - **Tablet (>= 10.5"):** menú reducido a iconos (72 px); el panel derecho pasa a drawer o bottom sheet.
 - **Alertas médicas:** franja delgada fija bajo el nombre del paciente, con chips rojos.
 - **Etiquetas y Notas:** un solo bloque colapsable, cerrado si está vacío.
