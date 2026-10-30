@@ -27,6 +27,8 @@ RBAC, and audit behavior are still pending.
 | `backend/platform/logging/` | Structured logger setup. |
 | `backend/platform/migrate/` | Forward-only transactional PostgreSQL migration runner and tests. |
 | `backend/platform/httpx/` | Typed HTTP errors mapped by the central Fiber error handler. |
+| `backend/cache/` | Redis Cache-Aside adapter; Redis failures return cache misses and are logged. |
+| `backend/middleware/` | JWT HS256 authentication middleware and authenticated principal context. |
 | `backend/internal/identity/` | Identity persistence and first-admin seed use case. |
 | `backend/internal/identity/passwords/` | Password policy, bcrypt hashing, verification, and rehash. |
 | `backend/internal/identity/auth.go` | Login authentication use case and credential verification. |

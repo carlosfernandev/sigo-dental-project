@@ -111,7 +111,7 @@ func TestLoginErrorsAreIndistinguishable(t *testing.T) {
 			}
 		})
 	}
-	if got, want := string(firstBody), `{"error":{"code":"invalid_credentials","details":null,"message":"Credenciales inválidas"}}`; got != want {
+	if got, want := string(firstBody), `{"error":{"code":"invalid_credentials","message":"Credenciales inválidas","details":null}}`; got != want {
 		t.Errorf("generic login error body = %s, want %s", got, want)
 	}
 }

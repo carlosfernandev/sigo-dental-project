@@ -84,6 +84,8 @@ frontend/  ──HTTPS/JWT──▶  monolith (Go + Fiber)  ──▶  PostgreSQ
 ```text
 backend/
   platform/                  # shared packages: config, logging, errors, tracing, redis
+  cache/                     # Redis Cache-Aside adapter; errors become cache misses
+  middleware/                # HTTP authentication middleware; authorization stays in services
   cmd/api/                   # composition root: config, pool, routes, start
   internal/
     identity/                # domain module: entity, service, repository, handler, dto
@@ -106,6 +108,10 @@ Each domain module is flat and self-contained:
 | `repository.go` | Port interface + PostgreSQL implementation. |
 | `handler.go` | Fiber HTTP mapping only. |
 | `dto.go` | Request/response shapes and validation. |
+
+Cross-cutting packages live in `backend/cache` and `backend/middleware`; domain services receive
+their interfaces through dependency injection. Authentication middleware establishes identity
+from a validated JWT. It does not replace the owning service's authorization checks.
 
 **Do not create top-level `controllers/`, `models/`, `repository/`, or `routes/`.** That
 layer-first layout is the anti-pattern this project rejects: one feature edit touches every

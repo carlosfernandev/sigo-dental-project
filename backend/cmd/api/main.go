@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -87,31 +85,7 @@ func main() {
 
 func newApp(logger *slog.Logger) *fiber.App {
 	app := fiber.New(fiber.Config{
-		ErrorHandler: func(c fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			stableCode := "internal_error"
-			message := "Internal Server Error"
-			var apiErr *httpx.Error
-			if errors.As(err, &apiErr) {
-				code = apiErr.Status
-				stableCode = apiErr.Code
-				message = apiErr.Message
-			} else if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-				stableCode = "http_error"
-				if statusMessage := http.StatusText(code); statusMessage != "" {
-					message = statusMessage
-				}
-			}
-			logger.Error("request error", "error", err, "path", c.Path(), "status", code)
-			return c.Status(code).JSON(fiber.Map{
-				"error": fiber.Map{
-					"code":    stableCode,
-					"message": message,
-					"details": nil,
-				},
-			})
-		},
+		ErrorHandler: httpx.FiberErrorHandler(logger),
 	})
 
 	// TODO: Add CORS middleware here if needed
