@@ -1,3 +1,12 @@
+-- PARKED: not applied by `go run ./cmd/migrate up`.
+--
+-- This migration ALTERs budget_items, a table no earlier migration creates:
+-- 007_billing.sql defines quotes/invoices/procedures instead. Applying it aborts
+-- the whole single-transaction run, so the schema stays empty.
+--
+-- Unblock by designing the TreatmentQuote tables per rules/GLOSSARY.md, then
+-- moving this file back to backend/migrations/ with the next free version.
+--
 -- Actualización para presupuestos (RF-08)
 
 -- Añadir el estado de aprobación al ítem del presupuesto
