@@ -59,27 +59,22 @@ type quoteResponse struct {
 
 // Invoice DTOs
 type paymentRequest struct {
-	Method string `json:"method"`
-	Amount int64  `json:"amount"`
+	Method    string  `json:"method"`
+	Amount    int64   `json:"amount"`
+	Reference *string `json:"reference"`
 }
 
 type invoiceItemRequest struct {
-	ProcedureID   string `json:"procedure_id"`
-	ProcedureName string `json:"procedure_name"`
-	Quantity      int    `json:"quantity"`
-	UnitPrice     int64  `json:"unit_price"`
-	Total         int64  `json:"total"`
+	Description string `json:"description"`
+	Quantity    int    `json:"quantity"`
+	UnitPrice   int64  `json:"unit_price"`
 }
 
 type invoiceRequest struct {
 	PatientID string               `json:"patient_id"`
-	QuoteID   *string              `json:"quote_id"`
+	QuoteID   *string              `json:"quote_id,omitempty"`
 	Items     []invoiceItemRequest `json:"items"`
-	Subtotal  int64                `json:"subtotal"`
 	Tax       int64                `json:"tax"`
-	Total     int64                `json:"total"`
-	Payments  []paymentRequest     `json:"payments"`
-	Status    string               `json:"status"`
 }
 
 type invoiceResponse struct {
@@ -135,29 +130,17 @@ func (r invoiceRequest) entity() Invoice {
 	items := make([]InvoiceItem, len(r.Items))
 	for i, item := range r.Items {
 		items[i] = InvoiceItem{
-			ProcedureID:   item.ProcedureID,
-			ProcedureName: item.ProcedureName,
-			Quantity:      item.Quantity,
-			UnitPrice:     item.UnitPrice,
-			Total:         item.Total,
-		}
-	}
-	payments := make([]Payment, len(r.Payments))
-	for i, payment := range r.Payments {
-		payments[i] = Payment{
-			Method: payment.Method,
-			Amount: payment.Amount,
+			Description: item.Description,
+			Quantity:    item.Quantity,
+			UnitPrice:   item.UnitPrice,
 		}
 	}
 	return Invoice{
 		PatientID: r.PatientID,
 		QuoteID:   r.QuoteID,
 		Items:     items,
-		Subtotal:  r.Subtotal,
 		Tax:       r.Tax,
-		Total:     r.Total,
-		Payments:  payments,
-		Status:    r.Status,
+		Status:    "issued",
 	}
 }
 

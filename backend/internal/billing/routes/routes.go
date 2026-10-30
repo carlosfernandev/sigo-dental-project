@@ -15,6 +15,10 @@ type handler interface {
 	ListQuotes(c fiber.Ctx) error
 	GetQuote(c fiber.Ctx) error
 	UpdateQuote(c fiber.Ctx) error
+
+	CreateInvoice(c fiber.Ctx) error
+	RegisterPayment(c fiber.Ctx) error
+	ListInvoicesByPatient(c fiber.Ctx) error
 }
 
 func Register(router fiber.Router, h handler, authMiddleware fiber.Handler) {
@@ -33,4 +37,10 @@ func Register(router fiber.Router, h handler, authMiddleware fiber.Handler) {
 	quotes.Get("/", h.ListQuotes)
 	quotes.Get("/:id", h.GetQuote)
 	quotes.Put("/:id", h.UpdateQuote)
+
+	// Invoices and mixed payments (RF-12)
+	invoices := router.Group("/api/v1/invoices", authMiddleware)
+	invoices.Post("/", h.CreateInvoice)
+	invoices.Patch("/:id/pay", h.RegisterPayment)
+	invoices.Get("/patient/:patient_id", h.ListInvoicesByPatient)
 }

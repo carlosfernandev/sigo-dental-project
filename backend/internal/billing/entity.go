@@ -7,12 +7,14 @@ import (
 )
 
 var (
-	ErrInvalidProcedure  = errors.New("invalid procedure")
-	ErrProcedureNotFound = errors.New("procedure not found")
-	ErrInvalidQuote      = errors.New("invalid quote")
-	ErrQuoteNotFound     = errors.New("quote not found")
-	ErrInvalidInvoice    = errors.New("invalid invoice")
-	ErrInvoiceNotFound   = errors.New("invoice not found")
+	ErrInvalidProcedure      = errors.New("invalid procedure")
+	ErrProcedureNotFound     = errors.New("procedure not found")
+	ErrInvalidQuote          = errors.New("invalid quote")
+	ErrQuoteNotFound         = errors.New("quote not found")
+	ErrInvalidInvoice        = errors.New("invalid invoice")
+	ErrInvoiceNotFound       = errors.New("invoice not found")
+	ErrPaymentExceedsBalance = errors.New("payment exceeds invoice balance")
+	ErrInvoiceNotPayable     = errors.New("invoice is not payable")
 )
 
 type Procedure struct {
@@ -50,16 +52,17 @@ type Quote struct {
 }
 
 type InvoiceItem struct {
-	ProcedureID   string
-	ProcedureName string
-	Quantity      int
-	UnitPrice     int64 // cents
-	Total         int64 // cents
+	Description string `json:"description"`
+	Quantity    int    `json:"quantity"`
+	UnitPrice   int64  `json:"unit_price"` // cents
+	Subtotal    int64  `json:"subtotal"`   // cents
 }
 
 type Payment struct {
-	Method string // cash, card, transfer, insurance
-	Amount int64  // cents
+	Method    string    `json:"method"` // cash, card, transfer, insurance
+	Amount    int64     `json:"amount"` // cents
+	Reference *string   `json:"reference,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Invoice struct {

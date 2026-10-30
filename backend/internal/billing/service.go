@@ -99,13 +99,102 @@ func (s *Service) UpdateQuote(ctx context.Context, principal authn.Principal, q 
 	return s.repo.UpdateQuote(ctx, q)
 }
 
+// CreateInvoice calculates all line totals on the server and issues the invoice atomically.
+func (s *Service) CreateInvoice(ctx context.Context, principal authn.Principal, invoice Invoice) (Invoice, error) {
+	if err := requirePaymentAccess(principal); err != nil {
+		return Invoice{}, err
+	}
+	if err := ValidateInvoice(invoice, s.now()); err != nil {
+		return Invoice{}, err
+	}
+	invoice.Status = "issued"
+	now := s.now().UTC()
+	invoice.IssuedAt = &now
+	tx, err := s.repo.BeginInvoiceTx(ctx)
+	if err != nil {
+		return Invoice{}, err
+	}
+	defer tx.Rollback(ctx)
+	created, err := tx.CreateInvoice(ctx, invoice)
+	if err != nil {
+		return Invoice{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Invoice{}, err
+	}
+	return created, nil
+}
+
+func (s *Service) RegisterPayment(ctx context.Context, principal authn.Principal, invoiceID string, payment Payment) (Invoice, error) {
+	if err := requirePaymentAccess(principal); err != nil {
+		return Invoice{}, err
+	}
+	if !billingUUIDPattern.MatchString(invoiceID) {
+		return Invoice{}, ErrInvalidInvoice
+	}
+	if err := ValidatePayment(payment); err != nil {
+		return Invoice{}, err
+	}
+	tx, err := s.repo.BeginInvoiceTx(ctx)
+	if err != nil {
+		return Invoice{}, err
+	}
+	defer tx.Rollback(ctx)
+	balance, err := tx.LockInvoice(ctx, invoiceID)
+	if err != nil {
+		return Invoice{}, err
+	}
+	if balance.Status != "issued" {
+		return Invoice{}, ErrInvoiceNotPayable
+	}
+	if balance.Paid > balance.Total || payment.Amount > balance.Total-balance.Paid {
+		return Invoice{}, ErrPaymentExceedsBalance
+	}
+	if _, err := tx.CreatePayment(ctx, invoiceID, payment); err != nil {
+		return Invoice{}, err
+	}
+	status := "issued"
+	if balance.Paid+payment.Amount == balance.Total {
+		status = "paid"
+	}
+	if err := tx.SetInvoiceStatus(ctx, invoiceID, status); err != nil {
+		return Invoice{}, err
+	}
+	updated, err := tx.LoadInvoice(ctx, invoiceID)
+	if err != nil {
+		return Invoice{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Invoice{}, err
+	}
+	return updated, nil
+}
+
+func (s *Service) ListInvoicesByPatient(ctx context.Context, principal authn.Principal, patientID string) ([]Invoice, error) {
+	if err := authn.RequireAnyRole(principal,
+		authn.RoleAdminTI, authn.RoleReceptionistCashier, authn.RoleDentist, authn.RoleAuditorAccountant,
+	); err != nil {
+		return nil, err
+	}
+	if !billingUUIDPattern.MatchString(patientID) {
+		return nil, ErrInvalidInvoice
+	}
+	return s.repo.ListInvoicesByPatient(ctx, patientID)
+}
+
 func requireAdminAccess(principal authn.Principal) error {
 	return authn.RequireAnyRole(principal, authn.RoleAdminTI)
 }
 
 func requireBillingAccess(principal authn.Principal) error {
 	return authn.RequireAnyRole(principal,
+		authn.RoleAdminTI,
 		authn.RoleReceptionistCashier,
 		authn.RoleDentist,
+		authn.RoleAuditorAccountant,
 	)
+}
+
+func requirePaymentAccess(principal authn.Principal) error {
+	return authn.RequireAnyRole(principal, authn.RoleAdminTI, authn.RoleReceptionistCashier)
 }

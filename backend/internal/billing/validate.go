@@ -2,9 +2,13 @@
 package billing
 
 import (
+	"math"
+	"regexp"
 	"strings"
 	"time"
 )
+
+var billingUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 func ValidateProcedure(p Procedure) error {
 	p.Code = strings.TrimSpace(p.Code)
@@ -46,32 +50,58 @@ func ValidateQuote(q Quote, now time.Time) error {
 }
 
 func ValidateInvoice(i Invoice, now time.Time) error {
-	if i.PatientID == "" {
+	if !billingUUIDPattern.MatchString(i.PatientID) {
+		return ErrInvalidInvoice
+	}
+	if i.QuoteID != nil && !billingUUIDPattern.MatchString(*i.QuoteID) {
 		return ErrInvalidInvoice
 	}
 	if len(i.Items) == 0 {
 		return ErrInvalidInvoice
 	}
-	for _, item := range i.Items {
-		if item.ProcedureID == "" || item.ProcedureName == "" || item.Quantity <= 0 || item.UnitPrice < 0 {
+	var subtotal int64
+	for index := range i.Items {
+		item := &i.Items[index]
+		item.Description = strings.TrimSpace(item.Description)
+		if item.Description == "" || len(item.Description) > 500 || item.Quantity <= 0 || item.Quantity > 100 || item.UnitPrice <= 0 {
 			return ErrInvalidInvoice
 		}
+		if int64(item.Quantity) > math.MaxInt64/item.UnitPrice {
+			return ErrInvalidInvoice
+		}
+		item.Subtotal = item.UnitPrice * int64(item.Quantity)
+		if subtotal > math.MaxInt64-item.Subtotal {
+			return ErrInvalidInvoice
+		}
+		subtotal += item.Subtotal
 	}
-	if i.Subtotal < 0 || i.Tax < 0 || i.Total < 0 {
+	if i.Tax < 0 || subtotal > math.MaxInt64-i.Tax {
 		return ErrInvalidInvoice
 	}
-	for _, payment := range i.Payments {
-		if payment.Amount < 0 {
-			return ErrInvalidInvoice
-		}
-		validMethods := map[string]bool{"cash": true, "card": true, "transfer": true, "insurance": true}
-		if !validMethods[payment.Method] {
-			return ErrInvalidInvoice
-		}
-	}
-	validStatuses := map[string]bool{"draft": true, "issued": true, "paid": true, "cancelled": true}
-	if !validStatuses[i.Status] {
+	i.Subtotal = subtotal
+	i.Total = subtotal + i.Tax
+	if i.Total <= 0 {
 		return ErrInvalidInvoice
+	}
+	return nil
+}
+
+func ValidatePayment(payment Payment) error {
+	if payment.Amount <= 0 {
+		return ErrInvalidInvoice
+	}
+	switch payment.Method {
+	case "cash":
+	case "card", "transfer", "insurance":
+		if payment.Reference == nil || strings.TrimSpace(*payment.Reference) == "" || len(strings.TrimSpace(*payment.Reference)) > 150 {
+			return ErrInvalidInvoice
+		}
+	default:
+		return ErrInvalidInvoice
+	}
+	if payment.Reference != nil {
+		reference := strings.TrimSpace(*payment.Reference)
+		*payment.Reference = reference
 	}
 	return nil
 }

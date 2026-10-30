@@ -157,6 +157,58 @@ func (h *Handler) UpdateQuote(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": quoteResponseFrom(updated)})
 }
 
+// CreateInvoice records and issues an internal invoice. Monetary inputs and outputs are cents.
+func (h *Handler) CreateInvoice(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorized()
+	}
+	var request invoiceRequest
+	if err := decodeRequest(c, &request); err != nil {
+		return invalidRequest()
+	}
+	created, err := h.service.CreateInvoice(c.Context(), principal, request.entity())
+	if err != nil {
+		return billingError(err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": invoiceResponseFrom(created)})
+}
+
+// RegisterPayment records one component of a payment; repeated calls support mixed payments.
+func (h *Handler) RegisterPayment(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorized()
+	}
+	var request paymentRequest
+	if err := decodeRequest(c, &request); err != nil {
+		return invalidRequest()
+	}
+	invoice, err := h.service.RegisterPayment(c.Context(), principal, c.Params("id"), Payment{
+		Method: request.Method, Amount: request.Amount, Reference: request.Reference,
+	})
+	if err != nil {
+		return billingError(err)
+	}
+	return c.JSON(fiber.Map{"data": invoiceResponseFrom(invoice)})
+}
+
+func (h *Handler) ListInvoicesByPatient(c fiber.Ctx) error {
+	principal, ok := middleware.PrincipalFromContext(c)
+	if !ok {
+		return unauthorized()
+	}
+	invoices, err := h.service.ListInvoicesByPatient(c.Context(), principal, c.Params("patient_id"))
+	if err != nil {
+		return billingError(err)
+	}
+	responses := make([]invoiceResponse, len(invoices))
+	for i, invoice := range invoices {
+		responses[i] = invoiceResponseFrom(invoice)
+	}
+	return c.JSON(fiber.Map{"data": responses})
+}
+
 func decodeRequest(c fiber.Ctx, target any) error {
 	contentType, _, err := mime.ParseMediaType(c.Get(fiber.HeaderContentType))
 	if err != nil || !strings.EqualFold(contentType, fiber.MIMEApplicationJSON) || len(c.Body()) == 0 || len(c.Body()) > maxRequestBytes {
@@ -186,6 +238,10 @@ func billingError(err error) error {
 		return httpx.NewError(fiber.StatusNotFound, "quote_not_found", "Presupuesto no encontrado", err)
 	case errors.Is(err, ErrInvoiceNotFound):
 		return httpx.NewError(fiber.StatusNotFound, "invoice_not_found", "Factura no encontrada", err)
+	case errors.Is(err, ErrPaymentExceedsBalance):
+		return httpx.NewError(fiber.StatusConflict, "payment_exceeds_balance", "El pago supera el saldo pendiente", err)
+	case errors.Is(err, ErrInvoiceNotPayable):
+		return httpx.NewError(fiber.StatusConflict, "invoice_not_payable", "La factura no acepta pagos", err)
 	default:
 		return httpx.NewError(fiber.StatusInternalServerError, "internal_error", "Error interno del servidor", err)
 	}
