@@ -16,11 +16,11 @@
 
 | Item | Value |
 | --- | --- |
-| **Current milestone** | Fase 0 — bootstrap (nothing scaffolded) |
-| **Last completed task** | — |
-| **Next pending task** | `F0-B1` repository layout |
-| **Blockers** | None. Open decision: RF-13 commission formula (not needed before Fase 3) |
-| **Services in flight** | None |
+| **Current milestone** | Backlog 01 — identidad (CI diferido por instrucción del usuario) |
+| **Last completed task** | Backlog 01 `1.1` — roles, users y seed del administrador inicial |
+| **Next pending task** | Backlog 01 `1.2` — política de contraseñas con bcrypt según `AGENTS.md` |
+| **Blockers** | `0.4` CI queda para el final; las migraciones son forward-only según `AGENTS.md` |
+| **Services in flight** | Monolito — identity foundation |
 
 ## Target architecture
 

@@ -436,8 +436,8 @@ Criterio de aceptación: Admin TI y Auditor consultan el log con filtros; nadie 
 | 0.1 | ☑ | | Estructura, EditorConfig y comandos Make; lint, tests y build verificados. |
 | 0.2 | ☑ | | `/health` implementado y probado; error envelope centralizado. |
 | 0.3 | ☑ | | Migración inicial aplicada dos veces en PostgreSQL local; test aislado de integración añadido. `down` excluido por la política forward-only de AGENTS.md. |
-| 0.4 | ☐ | | Workflow creado; falta ejecutar en GitHub para confirmar el runner y el escaneo remoto. |
-| 1.1 | ☐ | | |
+| 0.4 | ◷ | | Diferido por instrucción del usuario hasta el final del spec. Workflow ya está preparado. |
+| 1.1 | ☑ | | Migración aplicada; test de integración confirmó roles, hash bcrypt, cambio obligatorio y seed idempotente. |
 | 1.2 | ☐ | | |
 | 1.3 | ☐ | | |
 | 1.4 | ☐ | | |

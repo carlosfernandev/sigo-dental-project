@@ -247,6 +247,7 @@ naming any table, struct, endpoint, or component. Do not invent synonyms: it is 
 - `make test` runs backend tests with the race detector.
 - `make build` builds the API binary into the ignored `backend/bin/` directory.
 - `make migrate-up` applies pending files from `backend/migrations/` in order.
+- `make seed-admin` creates the initial admin from `SIGO_ADMIN_EMAIL` and `SIGO_ADMIN_PASSWORD`; the seed stores a bcrypt hash and requires a password change.
 - CI runs `make lint`, `make test`, `make build`, and `govulncheck` on pushes and pull requests.
 
 ## Conventions

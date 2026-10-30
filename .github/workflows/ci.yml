@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sigo
+          POSTGRES_PASSWORD: sigo_ci_password
+          POSTGRES_DB: sigo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sigo -d sigo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SIGO_TEST_PG_DSN: postgres://sigo:sigo_ci_password@localhost:5432/sigo?sslmode=disable
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Lint and format check
+        run: make lint
+
+      - name: Test with race detector and PostgreSQL integration
+        run: make test
+
+      - name: Build API
+        run: make build
+
+      - name: Scan Go dependencies for known vulnerabilities
+        working-directory: backend
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

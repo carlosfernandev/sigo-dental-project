@@ -25,8 +25,10 @@ root development commands. Product domains and frontend behavior are not impleme
 | `backend/platform/postgres/` | PostgreSQL pool construction. |
 | `backend/platform/logging/` | Structured logger setup. |
 | `backend/platform/migrate/` | Forward-only transactional PostgreSQL migration runner and tests. |
+| `backend/internal/identity/` | Identity persistence and first-admin seed use case. |
 | `backend/cmd/api/main.go` | Monolith composition root and Fiber bootstrap. |
 | `backend/cmd/migrate/main.go` | `go run ./cmd/migrate up` migration command. |
+| `backend/cmd/seed-admin/main.go` | `make seed-admin` initial SystemAdmin seed command. |
 | `backend/migrations/` | Versioned SQL migrations for the monolith. |
 | `deploy/docker-compose.yml` | Development PostgreSQL and Redis containers. |
 | `.github/workflows/ci.yml` | GitHub Actions checks, PostgreSQL integration service, vulnerability scan. |

@@ -1,6 +1,6 @@
 GO_FILES := $(shell find backend -type f -name '*.go')
 
-.PHONY: lint format test build migrate-up
+.PHONY: lint format test build migrate-up seed-admin
 
 lint:
 	@test -z "$$(gofmt -l $(GO_FILES))" || (gofmt -l $(GO_FILES); echo "Go files need formatting; run 'make format'."; exit 1)
@@ -18,3 +18,6 @@ build:
 
 migrate-up:
 	cd backend && go run ./cmd/migrate up
+
+seed-admin:
+	cd backend && go run ./cmd/seed-admin
