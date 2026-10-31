@@ -38,7 +38,7 @@ export function DashboardPage() {
         <div>
           <p className="eyebrow">{currentDate}</p>
           <h1 id="dashboard-title">Hola, {displayName}</h1>
-          <p>Accede a los módulos de trabajo de SIGO-Dental.</p>
+          <p>Accede a los módulos de trabajo de SIGO-Dental by Carlos.</p>
         </div>
         <span className="welcome-mark" aria-hidden="true">S</span>
       </header>

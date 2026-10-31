@@ -53,9 +53,9 @@ export function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-card" aria-labelledby="login-title">
-        <div className="brand-lockup" aria-label="SIGO-Dental">
+        <div className="brand-lockup" aria-label="SIGO-Dental by Carlos">
           <span className="brand-mark" aria-hidden="true">S</span>
-          <span className="brand-name">SIGO<span>-Dental</span></span>
+          <span className="brand-name">SIGO<span>-Dental</span> by Carlos</span>
         </div>
 
         <div className="login-heading">

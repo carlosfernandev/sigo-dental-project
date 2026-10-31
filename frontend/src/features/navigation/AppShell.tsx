@@ -52,7 +52,7 @@ export function AppShell() {
       <aside className="sidebar" aria-label="Navegación principal">
         <div className="sidebar-brand">
           <span className="brand-mark" aria-hidden="true">S</span>
-          <span className="sidebar-brand-name">SIGO<span>-Dental</span></span>
+          <span className="sidebar-brand-name">SIGO<span>-Dental</span> by Carlos</span>
         </div>
 
         <nav className="sidebar-navigation" aria-label="Módulos">
@@ -82,7 +82,7 @@ export function AppShell() {
       <div className="workspace">
         <header className="topbar">
           <div>
-            <p className="topbar-overline">SIGO-Dental / {currentSection}</p>
+            <p className="topbar-overline">SIGO-Dental by Carlos / {currentSection}</p>
             <p className="topbar-context">Sistema de gestión clínica</p>
           </div>
         </header>

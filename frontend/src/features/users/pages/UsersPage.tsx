@@ -252,7 +252,7 @@ export function UsersPage() {
       </div>
 
       <DataTable
-        caption="Usuarios registrados en SIGO-Dental"
+        caption="Usuarios registrados en SIGO-Dental by Carlos"
         columns={columns}
         rows={result.items}
         rowKey={(row) => row.id}
