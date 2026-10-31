@@ -114,6 +114,10 @@ termina TLS 1.3 y enruta `/api` al backend.
 Para la guía completa de publicación en un servidor remoto, actualizaciones y respaldos, sigue
 [`deploy/PRODUCCION.md`](deploy/PRODUCCION.md).
 
+Después del primer despliegue, consulta [`deploy/DATOS_PRODUCCION.md`](deploy/DATOS_PRODUCCION.md)
+para conocer los datos iniciales que genera el sistema y el orden recomendado para cargar datos
+reales de la clínica.
+
 1. Copia `deploy/.env.production.example` a `deploy/.env.production`. Configura un dominio real,
    `SIGO_CORS_ALLOWED_ORIGINS` con el origen HTTPS del frontend, contraseñas únicas y un secreto JWT
    generado con `openssl rand -hex 32`. El archivo de entorno contiene secretos y no se versiona.
