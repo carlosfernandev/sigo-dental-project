@@ -9,6 +9,7 @@ const DashboardPage = lazy(() => import("../features/dashboard/pages/DashboardPa
 const PatientsPage = lazy(() => import("../features/patients/pages/PatientsPage").then((module) => ({ default: module.PatientsPage })));
 const PatientDetailPage = lazy(() => import("../features/patients/pages/PatientDetailPage").then((module) => ({ default: module.PatientDetailPage })));
 const SchedulingPage = lazy(() => import("../features/scheduling/pages/SchedulingPage").then((module) => ({ default: module.SchedulingPage })));
+const ResourcesPage = lazy(() => import("../features/scheduling/resources/ResourcesPage").then((module) => ({ default: module.ResourcesPage })));
 const BillingPage = lazy(() => import("../features/billing/pages/BillingPage").then((module) => ({ default: module.BillingPage })));
 const UsersPage = lazy(() => import("../features/users/pages/UsersPage").then((module) => ({ default: module.UsersPage })));
 
@@ -30,6 +31,12 @@ function PrivateLayout() {
 function AdminOnlyLayout() {
   const { user } = useAuth();
   return user?.role === "admin_ti" ? <Outlet /> : <Navigate to="/dashboard" replace />;
+}
+
+function SchedulingAccessLayout() {
+  const { user } = useAuth();
+  const allowedRoles = ["admin_ti", "recepcionista_cajero", "odontologo", "asistente_dental"];
+  return allowedRoles.includes(user?.role ?? "") ? <Outlet /> : <Navigate to="/dashboard" replace />;
 }
 
 function SessionLoading() {
@@ -68,9 +75,14 @@ export function App() {
           <Route path="/patients" element={<Suspense fallback={<SessionLoading />}><PatientsPage /></Suspense>} />
           <Route path="/patients/new" element={<Suspense fallback={<SessionLoading />}><PatientsPage /></Suspense>} />
           <Route path="/patients/:id" element={<Suspense fallback={<SessionLoading />}><PatientDetailPage /></Suspense>} />
-          <Route path="/scheduling" element={<Suspense fallback={<SessionLoading />}><SchedulingPage /></Suspense>} />
+          <Route element={<SchedulingAccessLayout />}>
+            <Route path="/scheduling" element={<Suspense fallback={<SessionLoading />}><SchedulingPage /></Suspense>} />
+          </Route>
           <Route path="/billing" element={<Suspense fallback={<SessionLoading />}><BillingPage /></Suspense>} />
           <Route element={<AdminOnlyLayout />}>
+            <Route path="/admin/operatories" element={<Suspense fallback={<SessionLoading />}><ResourcesPage /></Suspense>} />
+            <Route path="/admin/chairs" element={<Suspense fallback={<SessionLoading />}><ResourcesPage /></Suspense>} />
+            <Route path="/admin/dentists" element={<Suspense fallback={<SessionLoading />}><ResourcesPage /></Suspense>} />
             <Route path="/users" element={<Suspense fallback={<SessionLoading />}><UsersPage /></Suspense>} />
             <Route path="/users/new" element={<Suspense fallback={<SessionLoading />}><UsersPage /></Suspense>} />
             <Route path="/admin/users" element={<Navigate to="/users" replace />} />

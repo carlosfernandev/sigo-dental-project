@@ -1,0 +1,133 @@
+name: ${COMPOSE_PROJECT_NAME:-sigo-dental}
+
+services:
+  postgres:
+    image: postgres:16.15-alpine3.24
+    environment:
+      POSTGRES_USER: ${SIGO_PG_USER:?Set SIGO_PG_USER in .env.production}
+      POSTGRES_PASSWORD: ${SIGO_PG_PASSWORD:?Set SIGO_PG_PASSWORD in .env.production}
+      POSTGRES_DB: ${SIGO_PG_DATABASE:?Set SIGO_PG_DATABASE in .env.production}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_min_protocol_version=TLSv1.3
+      - -c
+      - ssl_cert_file=/etc/postgresql/tls/server.crt
+      - -c
+      - ssl_key_file=/etc/postgresql/tls/server.key
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./tls/postgres:/etc/postgresql/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  redis:
+    image: redis:7.4.11-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    logging: *default-logging
+
+  migrate:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    entrypoint: ["migrate", "up"]
+    environment: &app-environment
+      SIGO_ENV: production
+      SIGO_LOG_LEVEL: ${SIGO_LOG_LEVEL:-info}
+      SIGO_JWT_SECRET: ${SIGO_JWT_SECRET:?Set SIGO_JWT_SECRET in .env.production}
+      SIGO_PG_HOST: postgres
+      SIGO_PG_PORT: 5432
+      SIGO_PG_USER: ${SIGO_PG_USER:?Set SIGO_PG_USER in .env.production}
+      SIGO_PG_PASSWORD: ${SIGO_PG_PASSWORD:?Set SIGO_PG_PASSWORD in .env.production}
+      SIGO_PG_DATABASE: ${SIGO_PG_DATABASE:?Set SIGO_PG_DATABASE in .env.production}
+      SIGO_PG_SSLMODE: verify-full
+      SIGO_PG_SSLROOTCERT: /etc/postgresql/ca.crt
+      SIGO_PG_MAX_CONNS: ${SIGO_PG_MAX_CONNS:-20}
+      SIGO_PG_MIN_CONNS: ${SIGO_PG_MIN_CONNS:-2}
+      SIGO_REDIS_HOST: redis
+      SIGO_REDIS_PORT: 6379
+      SIGO_REDIS_DATABASE: 0
+      SIGO_CORS_ALLOWED_ORIGINS: ${SIGO_CORS_ALLOWED_ORIGINS:?Set SIGO_CORS_ALLOWED_ORIGINS in .env.production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./tls/postgres/ca.crt:/etc/postgresql/ca.crt:ro
+    restart: "no"
+    logging: *default-logging
+
+  seed-admin:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    entrypoint: ["seed-admin"]
+    environment:
+      <<: *app-environment
+      SIGO_ADMIN_EMAIL: ${SIGO_ADMIN_EMAIL:?Set SIGO_ADMIN_EMAIL in .env.production}
+      SIGO_ADMIN_PASSWORD: ${SIGO_ADMIN_PASSWORD:?Set SIGO_ADMIN_PASSWORD in .env.production}
+    volumes:
+      - ./tls/postgres/ca.crt:/etc/postgresql/ca.crt:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+    logging: *default-logging
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      <<: *app-environment
+    volumes:
+      - ./tls/postgres/ca.crt:/etc/postgresql/ca.crt:ro
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      seed-admin:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    logging: *default-logging
+
+  web:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./tls/web:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  pgdata:

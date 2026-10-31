@@ -3,6 +3,7 @@
 .env
 .env.*
 !.env.example
+!deploy/.env.production.example
 *.local
 
 # Binaries
