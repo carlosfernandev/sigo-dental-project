@@ -73,10 +73,12 @@ func ValidateStateTransition(from, to AppointmentState) bool {
 		AppointmentStateScheduled: {
 			AppointmentStateConfirmed,
 			AppointmentStateCancelled,
+			AppointmentStateNoShow,
 		},
 		AppointmentStateConfirmed: {
 			AppointmentStateCheckedIn,
 			AppointmentStateCancelled,
+			AppointmentStateNoShow,
 		},
 		AppointmentStateCheckedIn: {
 			AppointmentStateInProgress,

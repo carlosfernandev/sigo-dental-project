@@ -3,13 +3,15 @@ import { useEffect, useRef, type ReactNode } from "react";
 type EntityDrawerProps = {
   open: boolean;
   title: string;
+  wide?: boolean;
+  centered?: boolean;
   onRequestClose: () => void;
   children: ReactNode;
 };
 
 const focusableSelector = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
-export function EntityDrawer({ open, title, onRequestClose, children }: EntityDrawerProps) {
+export function EntityDrawer({ open, title, wide = false, centered = false, onRequestClose, children }: EntityDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -51,8 +53,8 @@ export function EntityDrawer({ open, title, onRequestClose, children }: EntityDr
   if (!open) return null;
 
   return (
-    <div className="entity-drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onRequestClose(); }}>
-      <aside ref={drawerRef} className="entity-drawer" role="dialog" aria-modal="true" aria-labelledby="entity-drawer-title">
+    <div className={`entity-drawer-layer${centered ? " entity-drawer-layer--centered" : ""}`} onMouseDown={(event) => { if (event.target === event.currentTarget) onRequestClose(); }}>
+      <aside ref={drawerRef} className={`entity-drawer${wide ? " entity-drawer--wide" : ""}${centered ? " entity-drawer--centered" : ""}`} role="dialog" aria-modal="true" aria-labelledby="entity-drawer-title">
         <header className="entity-drawer-header">
           <h2 id="entity-drawer-title">{title}</h2>
           <button className="drawer-close-button" type="button" aria-label="Cerrar formulario" onClick={onRequestClose}>×</button>

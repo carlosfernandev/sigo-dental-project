@@ -105,6 +105,45 @@ cd deploy
 docker compose down
 ```
 
+## Despliegue en producción con Docker
+
+La configuración de producción vive en `deploy/compose.production.yml`. Publica únicamente HTTP y
+HTTPS; PostgreSQL y Redis quedan dentro de la red privada de Compose. Nginx redirige HTTP a HTTPS,
+termina TLS 1.3 y enruta `/api` al backend.
+
+Para la guía completa de publicación en un servidor remoto, actualizaciones y respaldos, sigue
+[`deploy/PRODUCCION.md`](deploy/PRODUCCION.md).
+
+1. Copia `deploy/.env.production.example` a `deploy/.env.production`. Configura un dominio real,
+   `SIGO_CORS_ALLOWED_ORIGINS` con el origen HTTPS del frontend, contraseñas únicas y un secreto JWT
+   generado con `openssl rand -hex 32`. El archivo de entorno contiene secretos y no se versiona.
+2. Instala certificados confiables para el dominio en `deploy/tls/web/fullchain.pem` y
+   `deploy/tls/web/privkey.pem`.
+3. Instala el certificado de servidor, su clave privada y el certificado de la CA en
+   `deploy/tls/postgres/server.crt`, `deploy/tls/postgres/server.key` y
+   `deploy/tls/postgres/ca.crt`. El certificado debe incluir `postgres` como nombre DNS SAN porque
+   ese es el host interno de la API. La clave debe ser legible por el usuario PostgreSQL del
+   contenedor (UID 70 en la imagen Alpine usada aquí) y tener permisos restringidos (por ejemplo,
+   `0600`). Los servicios de backend montan solo la CA y verifican tanto la cadena como el nombre
+   del servidor TLS.
+4. Desde la raíz del repositorio, construye e inicia los servicios:
+
+   ```sh
+   docker compose --env-file deploy/.env.production -f deploy/compose.production.yml up --build -d
+   ```
+
+Compose espera a que PostgreSQL esté disponible, aplica migraciones y crea el administrador inicial
+de forma idempotente antes de iniciar la API. Redis puede reiniciarse sin bloquear el backend; solo
+se usa como caché. Revisa el estado y los logs con:
+
+```sh
+docker compose --env-file deploy/.env.production -f deploy/compose.production.yml ps
+docker compose --env-file deploy/.env.production -f deploy/compose.production.yml logs -f api web
+```
+
+El volumen `pgdata` conserva la base de datos al actualizar contenedores. Para detener los servicios
+sin borrar los datos, usa `docker compose ... down` con el mismo archivo de entorno y Compose.
+
 ## Comandos útiles
 
 Desde la raíz del repositorio:

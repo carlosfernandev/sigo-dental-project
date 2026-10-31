@@ -7,6 +7,7 @@ const navigationItems = [
   { to: "/scheduling", label: "Agenda", icon: "calendar" },
   { to: "/billing", label: "Presupuestos", icon: "billing" },
   { to: "/users", label: "Usuarios", icon: "users" },
+  { to: "/admin/operatories", label: "Recursos", icon: "resources" },
 ] as const;
 
 const roleLabels: Record<string, string> = {
@@ -24,6 +25,7 @@ function NavigationIcon({ name }: { name: string }) {
     users: "M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM18 8h5m-2.5-2.5v5",
     calendar: "M8 3v4m8-4v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13H4V6a1 1 0 0 1 1-1Zm3 8h3v3H8z",
     billing: "M5 3h14v18l-2-1-2 1-3-1-3 1-2-1-2 1V3Zm4 5h6m-6 4h6m-6 4h4",
+    resources: "M4 5h16v4H4zM6 9v10m12-10v10M4 19h16M9 13h6",
   };
 
   return (
@@ -41,7 +43,9 @@ export function AppShell() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const displayName = user?.email.split("@")[0] || "Usuario";
-  const currentSection = navigationItems.find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))?.label ?? "Inicio";
+  const currentSection = pathname.startsWith("/admin/") ? "Recursos" : navigationItems.find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))?.label ?? "Inicio";
+  const canManageUsers = user?.role === "admin_ti";
+  const canUseScheduling = ["admin_ti", "recepcionista_cajero", "odontologo", "asistente_dental"].includes(user?.role ?? "");
 
   return (
     <div className="app-shell">
@@ -53,8 +57,8 @@ export function AppShell() {
 
         <nav className="sidebar-navigation" aria-label="Módulos">
           <p className="sidebar-section-label">Módulos</p>
-          {navigationItems.filter((item) => item.to !== "/users" || user?.role === "admin_ti").map((item) => (
-            <NavLink key={item.to} to={item.to} aria-label={item.label} title={item.label} className={({ isActive }) => `sidebar-link${isActive ? " is-active" : ""}`}>
+          {navigationItems.filter((item) => (item.to !== "/users" || canManageUsers) && (item.to !== "/admin/operatories" || canManageUsers) && (item.to !== "/scheduling" || canUseScheduling)).map((item) => (
+            <NavLink key={item.to} to={item.to} aria-label={item.label} title={item.label} className={({ isActive }) => `sidebar-link${isActive || (item.to === "/admin/operatories" && pathname.startsWith("/admin/")) ? " is-active" : ""}`}>
               <NavigationIcon name={item.icon} />
               <span>{item.label}</span>
             </NavLink>

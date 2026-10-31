@@ -14,26 +14,28 @@ import (
 
 // Postgres holds the connection settings for the monolith's database.
 type Postgres struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Database string
-	SSLMode  string
-	MaxConns int32
-	MinConns int32
+	Host        string
+	Port        int
+	User        string
+	Password    string
+	Database    string
+	SSLMode     string
+	SSLRootCert string
+	MaxConns    int32
+	MinConns    int32
 }
 
 func loadPostgres(l *loader) Postgres {
 	return Postgres{
-		Host:     l.required("SIGO_PG_HOST"),
-		Port:     l.integer("SIGO_PG_PORT", 5432, 1, 65535),
-		User:     l.required("SIGO_PG_USER"),
-		Password: l.required("SIGO_PG_PASSWORD"),
-		Database: l.required("SIGO_PG_DATABASE"),
-		SSLMode:  l.oneOf("SIGO_PG_SSLMODE", "disable", "disable", "require", "verify-ca", "verify-full"),
-		MaxConns: int32(l.integer("SIGO_PG_MAX_CONNS", 10, 1, 500)),
-		MinConns: int32(l.integer("SIGO_PG_MIN_CONNS", 0, 0, 500)),
+		Host:        l.required("SIGO_PG_HOST"),
+		Port:        l.integer("SIGO_PG_PORT", 5432, 1, 65535),
+		User:        l.required("SIGO_PG_USER"),
+		Password:    l.required("SIGO_PG_PASSWORD"),
+		Database:    l.required("SIGO_PG_DATABASE"),
+		SSLMode:     l.oneOf("SIGO_PG_SSLMODE", "disable", "disable", "require", "verify-ca", "verify-full"),
+		SSLRootCert: l.optional("SIGO_PG_SSLROOTCERT"),
+		MaxConns:    int32(l.integer("SIGO_PG_MAX_CONNS", 10, 1, 500)),
+		MinConns:    int32(l.integer("SIGO_PG_MIN_CONNS", 0, 0, 500)),
 	}
 }
 
@@ -44,9 +46,17 @@ func (p Postgres) DSN() string {
 		User:     url.UserPassword(p.User, p.Password),
 		Host:     net.JoinHostPort(p.Host, strconv.Itoa(p.Port)),
 		Path:     "/" + p.Database,
-		RawQuery: url.Values{"sslmode": {p.SSLMode}}.Encode(),
+		RawQuery: p.query().Encode(),
 	}
 	return u.String()
+}
+
+func (p Postgres) query() url.Values {
+	values := url.Values{"sslmode": {p.SSLMode}}
+	if p.SSLRootCert != "" {
+		values.Set("sslrootcert", p.SSLRootCert)
+	}
+	return values
 }
 
 // Redacted renders a safe-to-log DSN without the password.

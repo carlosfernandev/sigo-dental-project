@@ -9,7 +9,7 @@
 | Item | Value |
 | --- | --- |
 | **Fase actual** | Fase 1 — Core administrativo y turnos |
-| **Último trabajo completado** | Frontend: autenticación y enrutamiento base público/privado |
+| **Último trabajo completado** | Frontend: agenda diaria y mantenedores de recursos de programación |
 | **Siguiente requisito** | Portal web responsive para los flujos de Fase 1 (RNF-07 y RNF-08) |
 | **Pendiente para el final** | CI, por instrucción del usuario |
 | **Arquitectura** | Monolito Go + Fiber, PostgreSQL único, Redis solo caché |
@@ -60,6 +60,7 @@ El MVP cubre todos los RF, RN y RNF del SRS y funciona sin servicios de terceros
 
 - [x] RF-09: calendario por recinto, sillón y profesional.
 - [x] RF-10: estados de cita definidos en el SRS.
+- [x] Frontend RF-09/RF-10: agenda diaria con filtros, creación de citas y transiciones de estado permitidas.
 - [x] RN-03: impedir citas superpuestas en el mismo sillón, también bajo concurrencia.
 - [x] RF-11: recordatorios 48 h y 24 h generados por el sistema en una cola interna de recepción
       (estados pendiente/contactado/sin respuesta, con quién y cuándo); puerto de notificación sin

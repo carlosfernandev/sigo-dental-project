@@ -36,14 +36,14 @@ func (s *Service) CreateOperatory(ctx context.Context, principal authn.Principal
 }
 
 func (s *Service) ListOperatories(ctx context.Context, principal authn.Principal) ([]Operatory, error) {
-	if err := requireSchedulingAccess(principal); err != nil {
+	if err := requireResourceReadAccess(principal); err != nil {
 		return nil, err
 	}
 	return s.repo.ListOperatories(ctx)
 }
 
 func (s *Service) GetOperatory(ctx context.Context, principal authn.Principal, id string) (Operatory, error) {
-	if err := requireSchedulingAccess(principal); err != nil {
+	if err := requireResourceReadAccess(principal); err != nil {
 		return Operatory{}, err
 	}
 	return s.repo.GetOperatory(ctx, id)
@@ -71,14 +71,14 @@ func (s *Service) CreateChair(ctx context.Context, principal authn.Principal, c 
 }
 
 func (s *Service) ListChairs(ctx context.Context, principal authn.Principal) ([]Chair, error) {
-	if err := requireSchedulingAccess(principal); err != nil {
+	if err := requireResourceReadAccess(principal); err != nil {
 		return nil, err
 	}
 	return s.repo.ListChairs(ctx)
 }
 
 func (s *Service) GetChair(ctx context.Context, principal authn.Principal, id string) (Chair, error) {
-	if err := requireSchedulingAccess(principal); err != nil {
+	if err := requireResourceReadAccess(principal); err != nil {
 		return Chair{}, err
 	}
 	return s.repo.GetChair(ctx, id)
@@ -106,14 +106,14 @@ func (s *Service) CreateDentist(ctx context.Context, principal authn.Principal, 
 }
 
 func (s *Service) ListDentists(ctx context.Context, principal authn.Principal) ([]Dentist, error) {
-	if err := requireSchedulingAccess(principal); err != nil {
+	if err := requireResourceReadAccess(principal); err != nil {
 		return nil, err
 	}
 	return s.repo.ListDentists(ctx)
 }
 
 func (s *Service) GetDentist(ctx context.Context, principal authn.Principal, id string) (Dentist, error) {
-	if err := requireSchedulingAccess(principal); err != nil {
+	if err := requireResourceReadAccess(principal); err != nil {
 		return Dentist{}, err
 	}
 	return s.repo.GetDentist(ctx, id)
@@ -178,6 +178,9 @@ func (s *Service) UpdateAppointment(ctx context.Context, principal authn.Princip
 	if !ValidateStateTransition(existing.State, a.State) {
 		return Appointment{}, fmt.Errorf("%w: invalid state transition from %s to %s", ErrInvalidAppointment, existing.State, a.State)
 	}
+	if a.State == AppointmentStateNoShow && existing.StartTime.After(s.now()) {
+		return Appointment{}, ErrInvalidAppointment
+	}
 	updated, err := s.repo.UpdateAppointment(ctx, a)
 	if err != nil {
 		if isOverlapError(err) {
@@ -240,6 +243,16 @@ func requireAdminAccess(principal authn.Principal) error {
 
 func requireSchedulingAccess(principal authn.Principal) error {
 	return authn.RequireAnyRole(principal,
+		authn.RoleAdminTI,
+		authn.RoleReceptionistCashier,
+		authn.RoleDentist,
+		authn.RoleDentalAssistant,
+	)
+}
+
+func requireResourceReadAccess(principal authn.Principal) error {
+	return authn.RequireAnyRole(principal,
+		authn.RoleAdminTI,
 		authn.RoleReceptionistCashier,
 		authn.RoleDentist,
 		authn.RoleDentalAssistant,
